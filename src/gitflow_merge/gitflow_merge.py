@@ -5,10 +5,10 @@ import logging
 import os
 import re
 import sys
-from distutils.version import LooseVersion
+from packaging.version import Version
 from subprocess import CalledProcessError
 
-import utils
+from gitflow_merge import utils
 
 # pylint: disable=invalid-name
 log = logging.getLogger("gitflow_merge")
@@ -38,7 +38,7 @@ class VersionedBranch:
         return self.prefix + self.version
 
     def __lt__(self, item):
-        return LooseVersion(self.version) < LooseVersion(item.version)
+        return Version(self.version) < Version(item.version)
 
 
 class MergeProblem:

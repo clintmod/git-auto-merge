@@ -6,10 +6,10 @@ import sys
 from subprocess import CalledProcessError
 from unittest.mock import patch
 
-import gitflow_merge as gm
+import gitflow_merge.gitflow_merge as gm
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_get_branch_list_for_prefix(execute_shell_mock):
     execute_shell_mock.side_effect = execute_shell_func
     branches = gm.get_branch_list_for_prefix("hotfix")
@@ -26,7 +26,7 @@ def execute_shell_func(command):
     return "hotfix/1.0.1\nhotfix/1.0.2\nrelease/2.3.0"
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_get_branch_list_for_prefix_works_for_unversioned_hotfix_branches(exec_mock):
     exec_mock.return_value = "hotfix/TICKET-1234\nhotfix/3.0.0"
     branches = gm.get_branch_list_for_prefix("hotfix/", False, "hotfix/(?![0-9]).*")
@@ -50,7 +50,7 @@ def ensure_repo_dirs():
         os.makedirs(f"repos/{repo}", exist_ok=True)
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_main(execute_shell_mock):
     ensure_repo_dirs()
     sys.argv = ["-d"]
@@ -133,13 +133,13 @@ def test_sort_and_convert_versioned_to_strings_works_with_dates():
     assert sorted_versioned == expected
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_fetch_all(execute_shell_mock):
     gm.fetch_all()
     execute_shell_mock.assert_called()
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_merge_all(execute_shell_mock):
     ensure_repo_dirs()
     gm.merge_all()
@@ -152,7 +152,7 @@ def test_merge_problem():
     assert str(mp1)
 
 
-@patch("utils.execute_shell")
+@patch("gitflow_merge.utils.execute_shell")
 def test_merge_down_handles_errors(execute_shell_mock):
     ensure_repo_dirs()
     execute_shell_mock.side_effect = raise_merge_error
@@ -174,7 +174,7 @@ def test_validate_environment(sys_exit_mock):
 
 
 @patch("sys.exit")
-@patch("gitflow_merge.log.info")
+@patch("gitflow_merge.gitflow_merge.log.info")
 def test_handle_errors(log_info_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("repo1", "merge_from1", "merge_to1", err1)
@@ -183,8 +183,8 @@ def test_handle_errors(log_info_mock, sys_exit_mock):
     sys_exit_mock.assert_called()
 
 
-@patch("gitflow_merge.get_branch_list")
-@patch("utils.execute_shell")
+@patch("gitflow_merge.gitflow_merge.get_branch_list")
+@patch("gitflow_merge.utils.execute_shell")
 def test_merge_develop_to_feature_branches(execute_shell_mock, branches_mock):
     branches_mock.side_effect = get_branch_list
     execute_shell_mock.side_effect = raise_merge_error
@@ -193,7 +193,7 @@ def test_merge_develop_to_feature_branches(execute_shell_mock, branches_mock):
     assert errors
 
 
-@patch("gitflow_merge.get_branch_list")
+@patch("gitflow_merge.gitflow_merge.get_branch_list")
 def test_get_merge_down_branch_works_for_release_next(branches_mock):
     branches_mock.side_effect = get_branch_list
     actual = gm.get_merge_down_branch_list()
@@ -201,8 +201,8 @@ def test_get_merge_down_branch_works_for_release_next(branches_mock):
     assert expected == actual
 
 
-@patch("gitflow_merge.get_branch_list")
-@patch("utils.execute_shell")
+@patch("gitflow_merge.gitflow_merge.get_branch_list")
+@patch("gitflow_merge.utils.execute_shell")
 def test_merge_master_to_unversioned_hotfix_branches(execute_shell_mock, branches_mock):
     branches_mock.side_effect = get_branch_list
     execute_shell_mock.side_effect = raise_merge_error
@@ -211,7 +211,7 @@ def test_merge_master_to_unversioned_hotfix_branches(execute_shell_mock, branche
     assert errors
 
 
-@patch("gitflow_merge.get_branch_list")
+@patch("gitflow_merge.gitflow_merge.get_branch_list")
 def test_main_branch_supported(branches_mock):
     branches_mock.side_effect = get_main_branch_list
     actual = gm.get_merge_down_branch_list()

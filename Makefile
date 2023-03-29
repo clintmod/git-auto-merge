@@ -5,28 +5,21 @@ GITHUB_ORG ?= clintmod
 export
 
 setup:
-	python -m venv venv && \
-	source venv/bin/activate && \
-	pip install --upgrade pip && \
-	pip install -r requirements.txt
+	poetry install
 
 test:
-	source venv/bin/activate && \
-	pytest -vvv \
-	--ignore repos \
-	--ignore venv \
-	--cov=. \
-	--cov-report term-missing:skip-covered
+	poetry run pytest -vvv \
+		--ignore repos \
+		--ignore venv \
+		--cov=src/gitflow_merge \
+		--cov-report term-missing:skip-covered \
+	.
 
 run:
-	./gitflow_merge.py -v
-
-debug:
-	./gitflow_merge.py -v
+	src/gitflow_merge/gitflow_merge.py -v
 
 lint:
-	source venv/bin/activate && \
-	pylint -j4 -f --rcfile=./pylintrc colorized *.py
+	poetry run pylint -j4 -f colorized src
 
 format:
 	source venv/bin/activate && \

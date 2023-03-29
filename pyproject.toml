@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "gitflow-merge"
+version = "0.1.0"
+description = ""
+authors = ["Clint M <cmodien@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "gitflow_merge", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "*"
+isort = "*"
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

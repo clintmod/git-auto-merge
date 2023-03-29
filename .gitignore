@@ -4,3 +4,4 @@ repos
 .coverage
 reports
 .vscode
+.venv

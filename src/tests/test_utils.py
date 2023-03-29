@@ -1,10 +1,10 @@
 from subprocess import CalledProcessError, CompletedProcess
 from unittest.mock import patch
 
-import utils
+from gitflow_merge import utils
 
 
-@patch("utils.run")
+@patch("gitflow_merge.utils.run")
 def test_execute_shell(run_mock):
     run_mock.side_effect = run_func
     utils.execute_shell(["asdf"])
@@ -18,7 +18,7 @@ def run_func(command, shell, cwd, stderr, check, stdout, universal_newlines):
     return CompletedProcess(args=command, returncode=0, stdout="")
 
 
-@patch("utils.run")
+@patch("gitflow_merge.utils.run")
 def test_execute_shell_handles_errors(run_mock):
     run_mock.side_effect = run_error_func
     try:
