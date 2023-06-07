@@ -1,4 +1,4 @@
-REPO_LIST ?= backend,mobile,web,common
+REPO_LIST ?= git@github.com:clintmod/gitflow_merge_test
 
 GITHUB_ORG ?= clintmod
 
@@ -10,13 +10,16 @@ setup:
 test:
 	poetry run pytest -vvv \
 		--ignore repos \
-		--ignore venv \
-		--cov=src/gitflow_merge \
+		--ignore .venv \
+		--cov=gitflow_merge \
 		--cov-report term-missing:skip-covered \
-	.
+	tests
+
+dry-run:
+	poetry run src/gitflow_merge.py --dry-run
 
 run:
-	src/gitflow_merge/gitflow_merge.py -v
+	poetry run src/gitflow_merge.py -v
 
 lint:
 	poetry run pylint -j4 -f colorized src

@@ -18,6 +18,7 @@ isort = "*"
 pylint = "*"
 pytest = "*"
 pytest-cov = "*"
+pytest-mock = "*"
 
 [build-system]
 requires = ["poetry-core"]

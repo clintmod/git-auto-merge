@@ -1,0 +1,26 @@
+{
+    "branches": {
+        "main": {
+            "name": "main",
+            "parent": null
+        },
+        "hotfix": {
+            "regex": "hotfix/(?:(\\d+\\.[.\\d]*\\d+))",
+            "versioned": true,
+            "parent": "main"
+        },
+        "release": {
+            "regex": "release/(?:(\\d+\\.[.\\d]*\\d+))",
+            "versioned": true,
+            "parent": "hotfix"
+        },
+        "develop": {
+            "name": "develop",
+            "parent": "release"
+        },
+        "feature": {
+            "prefix": "feature/",
+            "parent": "develop"
+        }
+    }
+}
