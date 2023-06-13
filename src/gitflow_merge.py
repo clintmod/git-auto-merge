@@ -36,15 +36,18 @@ class MergeItem:
         merge_item = MergeItem(branch_name=branch, upstream=self)
         self.downstream.append(merge_item)
         return merge_item
+    
+    def depth(self):
+        if self.upstream is None:
+            return 0
+        return self.upstream.depth() + 1
 
     def __str__(self):
         return_val = ""
         if self.upstream is not None:
             return_val += f"{self.upstream.branch_name} -> {self.branch_name}"
-        else:
-            return_val += f"None -> {self.branch_name}"
         for merge_item in self.downstream:
-            return_val += f"\n\t {str(merge_item)}"
+            return_val += "\n{}{}".format("  " * self.depth(), str(merge_item))
         return return_val
 
     def __repr__(self):
@@ -346,7 +349,6 @@ def main():
     validate_environment()
     init()
     clone()
-    # merge_all()
     plan = build_plan(config)
     # errors = execute_merge_plan(plans)
     # handle_errors(errors)

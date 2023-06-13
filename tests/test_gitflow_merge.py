@@ -51,18 +51,17 @@ def test_main(execute_shell_mock):
 def test_merge_item():
     branch_name = "main"
     merge_item = gm.MergeItem(branch_name)
-    assert str(merge_item) == "None -> main"
+    assert merge_item.branch_name == "main"
 
 
-@pytest.mark.skip("temp")
-def test_sort_and_convert_versioned_to_strings():
+def test_sorting_versioned_branches_works():
     hotfixes = ["hotfix/11.0.1", "hotfix/1.0.2", "hotfix/22.0.1", "hotfix/2.0.2"]
-    versioned_hotfixes = gm.get_versioned(hotfixes)
+    versioned_hotfixes = [gm.VersionedBranch(branch) for branch in hotfixes]
     releases = ["release/11.1.0", "release/1.1.0", "release/22.2.0", "release/2.2.0"]
-    versioned_releases = gm.get_versioned(releases)
+    versioned_releases = [gm.VersionedBranch(branch) for branch in releases]
     all_versioned = versioned_hotfixes + versioned_releases
     all_versioned.sort()
-    sorted_versioned = gm.convert_versioned_to_strings(all_versioned)
+    sorted_versioned = [str(branch) for branch in all_versioned]
     expected = [
         "hotfix/1.0.2",
         "release/1.1.0",
@@ -168,12 +167,12 @@ def test_main(init_mock, execute_shell_mock):
 
 
 @patch("gitflow_merge.get_branch_list_raw")
-def test_build_plan(branches_mock):
+def test_build_plan(snapshot, branches_mock):
     branches_mock.side_effect = get_branch_list_raw
     config = gm.load_config()
     LOG.info(f"config = {config}")
     plan = gm.build_plan(config)
-    LOG.warning(f"plan = {plan}")
+    snapshot.assert_match(str(plan), 'test_build_plan.txt')
     raise AssertionError()
 
 

@@ -11,6 +11,7 @@ test:
 		--ignore .venv \
 		--cov=src \
 		--cov-report term-missing:skip-covered \
+		$(EXTRA_TEST_ARGS) \
 	tests
 
 dry-run:
