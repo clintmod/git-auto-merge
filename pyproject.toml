@@ -4,13 +4,15 @@ version = "0.1.0"
 description = ""
 authors = ["Clint M <cmodien@gmail.com>"]
 readme = "README.md"
-packages = [
-    { include = "gitflow_merge", from = "src" },
-]
+
+[tool.black]
+line_length = 100
+
+[tool.isort]
+profile = "black"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-
 
 [tool.poetry.group.dev.dependencies]
 black = "*"
@@ -19,6 +21,7 @@ pylint = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-mock = "*"
+pyright = "^1.1.313"
 
 [build-system]
 requires = ["poetry-core"]

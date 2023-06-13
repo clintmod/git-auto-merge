@@ -1,26 +1,34 @@
 {
-    "branches": {
-        "main": {
-            "name": "main",
-            "parent": null
-        },
-        "hotfix": {
-            "regex": "hotfix/(?:(\\d+\\.[.\\d]*\\d+))",
-            "versioned": true,
-            "parent": "main"
-        },
+  "version": 1,
+  "plan": {
+    "root": {
+      "selectors": [
+        {"name": "main"}
+      ],
+      "downstream": {
+        
         "release": {
-            "regex": "release/(?:(\\d+\\.[.\\d]*\\d+))",
-            "versioned": true,
-            "parent": "hotfix"
-        },
-        "develop": {
-            "name": "develop",
-            "parent": "release"
-        },
-        "feature": {
-            "prefix": "feature/",
-            "parent": "develop"
+          "sort": "version",
+          "selectors": [
+            {"regex": "^hotfix/.*(?:(\\d+\\.[.\\d]*\\d+)).*"},
+            {"regex": "^release/.*(?:(\\d+\\.[.\\d]*\\d+)).*"}
+          ],
+          "downstream": {
+            "develop": {
+              "selectors": [
+                {"name": "develop"}
+              ],
+              "downstream": {
+                "feature": {
+                  "selectors": [
+                    {"regex": "^feature/.*"}
+                  ]
+                }
+              }
+            }
+          }
         }
+      }
     }
+  }
 }

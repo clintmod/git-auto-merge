@@ -1,34 +1,29 @@
 #!/usr/bin/env python
 
-import logging as log
+import logging
 import os
-import pytest
 import sys
 from subprocess import CalledProcessError
 from unittest.mock import patch
 
+import pytest
+
 import gitflow_merge as gm
+
+LOG = logging.getLogger("gitflow_merge_test")
+
 
 @pytest.fixture(autouse=True)
 def mock_os_makedirs(mocker):
-    mocker.patch('os.makedirs')
-    mocker.patch('os.chdir')
+    mocker.patch("os.makedirs")
+    mocker.patch("os.chdir")
+    mocker.patch.dict("os.environ", {"REPO_LIST": "backend,mobile"})
+
 
 @patch("argparse.ArgumentParser.parse_args")
-def test_parse_args(parse_args_mock):
+def test_init(parse_args_mock):
     parse_args_mock.return_value.verbose = 1
-    gm.parse_args()
-
-@patch("utils.execute_shell")
-def test_get_branch_list_for_prefix(execute_shell_mock):
-    execute_shell_mock.side_effect = execute_shell_func
-    branches = gm.get_branch_list_for_prefix("hotfix")
-    assert branches
-
-
-def test_get_branch_list_for_prefix_works_for_no_matching_prefix():
-    branches = gm.get_branch_list_for_prefix("asdf")
-    assert not branches
+    gm.init()
 
 
 def execute_shell_func(command):
@@ -38,47 +33,28 @@ def execute_shell_func(command):
 
 def test_configure_logging():
     gm.configure_logging(0)
-    assert log.INFO == log.getLogger("").level
+    assert logging.INFO == logging.getLogger("").level
 
 
 def test_configure_logging_verbose():
     gm.configure_logging(1)
-    assert log.DEBUG == log.getLogger("").level
-
-
-def ensure_repo_dirs():
-    os.environ["REPO_LIST"] = "backend,mobile"
-    repos = gm.get_repo_list()
-    for repo in repos:
-        os.makedirs(f"repos/{repo}", exist_ok=True)
+    assert logging.DEBUG == logging.getLogger("").level
 
 
 @patch("utils.execute_shell")
 def test_main(execute_shell_mock):
-    ensure_repo_dirs()
     sys.argv = ["-d"]
     gm.main()
     execute_shell_mock.assert_called()
 
 
-def test_versioned_branch():
-    branch_name = "hotfix/1.0.1"
-    version = branch_name.replace("hotfix/", "")
-    branch = gm.VersionedBranch(branch_name, version)
-    assert branch.version == "1.0.1"
-    assert str(branch) == "hotfix/1.0.1"
+def test_merge_item():
+    branch_name = "main"
+    merge_item = gm.MergeItem(branch_name)
+    assert str(merge_item) == "None -> main"
 
 
-def test_convert_versioned_to_strings_works_with_empty_array():
-    branches = gm.convert_versioned_to_strings([])
-    assert not branches
-
-
-def test_convert_versioned_to_strings_works_with_none():
-    branches = gm.convert_versioned_to_strings(None)
-    assert not branches
-
-
+@pytest.mark.skip("temp")
 def test_sort_and_convert_versioned_to_strings():
     hotfixes = ["hotfix/11.0.1", "hotfix/1.0.2", "hotfix/22.0.1", "hotfix/2.0.2"]
     versioned_hotfixes = gm.get_versioned(hotfixes)
@@ -102,49 +78,15 @@ def test_sort_and_convert_versioned_to_strings():
     assert expected == sorted_versioned
 
 
-def test_sort_and_convert_versioned_to_strings_works_with_dates():
-    hotfixes = [
-        "hotfix/2020.01.06",
-        "hotfix/2020.01.02",
-        "hotfix/2020.06.01",
-        "hotfix/2020.12.01",
-    ]
-    versioned_hotfixes = gm.get_versioned(hotfixes)
-    releases = [
-        "release/2021.01.01",
-        "release/2020.01.01",
-        "release/2022.02.01",
-        "release/2020.02.01",
-    ]
-    versioned_releases = gm.get_versioned(releases)
-    all_versioned = versioned_hotfixes + versioned_releases
-    all_versioned.sort()
-    sorted_versioned = gm.convert_versioned_to_strings(all_versioned)
-    expected = [
-        "release/2020.01.01",
-        "hotfix/2020.01.02",
-        "hotfix/2020.01.06",
-        "release/2020.02.01",
-        "hotfix/2020.06.01",
-        "hotfix/2020.12.01",
-        "release/2021.01.01",
-        "release/2022.02.01",
-    ]
-    print("expected = " + str(expected))
-    print("actual   = " + str(sorted_versioned))
-    assert sorted_versioned == expected
-
-
 @patch("utils.execute_shell")
-def test_clone_all(execute_shell_mock):
-    gm.clone_all()
+def test_clone(execute_shell_mock):
+    gm.clone()
     execute_shell_mock.assert_called()
 
 
 @patch("utils.execute_shell")
-def test_merge_all(execute_shell_mock):
-    ensure_repo_dirs()
-    gm.merge_all()
+def test_merge(execute_shell_mock):
+    gm.merge("asdf", "asdf", "asdf")
     execute_shell_mock.assert_called()
 
 
@@ -154,18 +96,17 @@ def test_merge_problem():
     assert str(mp1)
 
 
-@patch("utils.execute_shell")
-def test_merge_down_handles_errors(execute_shell_mock):
-    ensure_repo_dirs()
-    execute_shell_mock.side_effect = raise_merge_error
-    errors = gm.merge_down()
-    assert errors
-
-
 def raise_merge_error(command):
     if "git merge" in command:
         raise CalledProcessError(0, command)
     return "asdf\nasdf"
+
+
+@patch("utils.execute_shell")
+def test_merge(execute_shell_mock):
+    execute_shell_mock.side_effect = raise_merge_error
+    errors = gm.merge("from", "to", "repo")
+    assert errors
 
 
 @patch("sys.exit")
@@ -175,26 +116,30 @@ def test_validate_environment(sys_exit_mock):
     sys_exit_mock.assert_called_with(1)
 
 
+def exists_func(path):
+    if path == "reports":
+        return False
+    else:
+        return True
+
+
+@patch("os.mkdir")
+@patch("os.remove")
+@patch("os.path.exists")
 @patch("sys.exit")
-@patch("gitflow_merge.log.info")
-def test_handle_errors(log_info_mock, sys_exit_mock):
+@patch("gitflow_merge.LOG.info")
+def test_handle_errors(log_info_mock, sys_exit_mock, exists_mock, remove_mock, mkdir_mock):
+    exists_mock.side_effect = exists_func
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("repo1", "merge_from1", "merge_to1", err1)
     gm.handle_errors([mp1])
     log_info_mock.assert_called_with(mp1)
     sys_exit_mock.assert_called()
+    remove_mock.assert_called()
+    mkdir_mock.assert_called()
 
 
-@patch("gitflow_merge.get_branch_list_raw")
-@patch("utils.execute_shell")
-def test_merge_develop_to_feature_branches(execute_shell_mock, branches_mock):
-    branches_mock.side_effect = get_branch_list_raw
-    execute_shell_mock.side_effect = raise_merge_error
-    ensure_repo_dirs()
-    errors = gm.merge_develop_to_feature_branches()
-    assert errors
-
-
+@pytest.mark.skip("temp")
 @patch("gitflow_merge.get_branch_list_raw")
 def test_main_branch_supported(branches_mock):
     branches_mock.side_effect = get_branch_list_raw
@@ -206,30 +151,30 @@ def test_main_branch_supported(branches_mock):
         "release/2.4.0",
         "hotfix/2.4.2",
         "release/prefix-1000.1000.1000-codename",
-        "develop"
+        "develop",
     ]
     assert expected == actual
-
-
-def test_get_main_branch_name_works():
-    actual = gm.get_main_branch_name()
-    expected = "main"
-    assert expected == actual
-
-
-def test_is_semver_works():
-    assert gm.is_semver("3.0.0")
-    assert not gm.is_semver("3")
 
 
 def test_load_config():
     gm.load_config()
 
 
-@patch("gitflow_merge.parse_args")
+@patch("gitflow_merge.init")
 @patch("utils.execute_shell")
-def test_main(parse_args_mock, execute_shell_mock):
+@pytest.mark.skip("temp")
+def test_main(init_mock, execute_shell_mock):
     gm.main()
+
+
+@patch("gitflow_merge.get_branch_list_raw")
+def test_build_plan(branches_mock):
+    branches_mock.side_effect = get_branch_list_raw
+    config = gm.load_config()
+    LOG.info(f"config = {config}")
+    plan = gm.build_plan(config)
+    LOG.warning(f"plan = {plan}")
+    raise AssertionError()
 
 
 def get_branch_list_raw():

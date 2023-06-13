@@ -1,7 +1,5 @@
 REPO_LIST ?= git@github.com:clintmod/gitflow_merge_test
 
-GITHUB_ORG ?= clintmod
-
 export
 
 setup:
@@ -11,7 +9,7 @@ test:
 	poetry run pytest -vvv \
 		--ignore repos \
 		--ignore .venv \
-		--cov=gitflow_merge \
+		--cov=src \
 		--cov-report term-missing:skip-covered \
 	tests
 
@@ -25,8 +23,7 @@ lint:
 	poetry run pylint -j4 -f colorized src
 
 format:
-	source venv/bin/activate && \
-	black *.py && isort *.py
+	poetry run black . && poetry run isort .
 
 clean-reports:
 	rm -rf reports/*
