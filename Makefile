@@ -1,4 +1,4 @@
-REPO_LIST ?= git@github.com:clintmod/gitflow_merge_test
+GIT_REPO ?= git@github.com:clintmod/gitflow_merge_test
 
 export
 
@@ -13,6 +13,10 @@ test:
 		--cov-report term-missing:skip-covered \
 		$(EXTRA_TEST_ARGS) \
 	tests
+
+test-update:
+	EXTRA_TEST_ARGS="--snapshot-update" make test
+
 
 dry-run:
 	poetry run src/gitflow_merge.py --dry-run

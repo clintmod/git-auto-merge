@@ -36,7 +36,7 @@ class MergeItem:
         merge_item = MergeItem(branch_name=branch, upstream=self)
         self.downstream.append(merge_item)
         return merge_item
-    
+
     def depth(self):
         if self.upstream is None:
             return 0
@@ -79,13 +79,11 @@ class VersionedBranch:
 
 
 class MergeProblem:
-    repo = ""
     merge_from = ""
     merge_to = ""
     error = None
 
-    def __init__(self, repo, merge_from, merge_to, error):
-        self.repo = repo
+    def __init__(self, merge_from, merge_to, error):
         self.merge_from = merge_from
         self.merge_to = merge_to
         self.error = error
@@ -98,15 +96,9 @@ class MergeProblem:
 
     def to_string(self):
         return_val = "An error occurred merging"
-        return_val += " from {} to {} in repo {}."
+        return_val += " from {} to {}."
         return_val += " The error message was: {}"
-        return_val = return_val.format(self.merge_from, self.merge_to, self.repo, self.error)
-        return return_val
-
-    def to_string_short(self):
-        return_val = "An error occurred merging"
-        return_val += " from {} to {} in repo {}."
-        return_val = return_val.format(self.merge_from, self.merge_to, self.repo)
+        return_val = return_val.format(self.merge_from, self.merge_to, self.error)
         return return_val
 
 
@@ -131,12 +123,15 @@ def get_branch_list_raw():
 
 
 def get_branch_list():
+    repo_name = get_repo_name()
+    os.chdir("repos/{}".format(repo_name))
     branches_raw = get_branch_list_raw()
     branches = branches_raw.split("\n")
     while "" in branches:
         branches.remove("")
     LOG.debug("split branches = %s", branches)
     branches = [branch.strip() for branch in branches]
+    os.chdir("../..")
     return branches
 
 
@@ -157,22 +152,22 @@ def init():
 
 def get_repo():
     return_val = ""
-    if "GFM_REPO" in os.environ:
-        return_val = os.environ["GFM_REPO"]
+    if "GIT_REPO" in os.environ:
+        return_val = os.environ["GIT_REPO"]
         assert return_val != ""
     return return_val
 
 
-def get_repo_name(repo):
-    return repo.split("/")[-1]
+def get_repo_name():
+    return get_repo().split("/")[-1]
 
 
 def clone():
-    repo = get_repo()
     os.makedirs("repos", exist_ok=True)
     os.chdir("repos")
     command = ""
-    repo_name = get_repo_name(repo)
+    repo = get_repo()
+    repo_name = get_repo_name()
     LOG.info("cloning/fetching repo = %s", repo)
     command = f"git clone {repo}"
     command += f" || cd {repo_name} && git fetch --prune && cd .."
@@ -187,9 +182,15 @@ def git_push(branch):
         utils.execute_shell(f"git push origin {branch}")
 
 
-def merge(merge_from, merge_to, repo_name):
+def merge_plan(plan):
+    assert plan is not None
+    if plan.upstream is not None:
+        merge_branches(plan.upstream.branch_name, plan.branch_name)
+
+
+def merge_branches(merge_from, merge_to):
     errors = []
-    LOG.info("Merging from %s to %s in repo_name %s", merge_from, merge_to, repo_name)
+    LOG.info("Merging from %s to %s", merge_from, merge_to)
     command = "git reset --hard HEAD"
     command += f" && git clean -fdx && git checkout {merge_to}"
     command += f" && git reset --hard origin/{merge_to}"
@@ -199,12 +200,11 @@ def merge(merge_from, merge_to, repo_name):
         message = utils.execute_shell(f"git merge origin/{merge_from}")
     except CalledProcessError as err:
         LOG.info(
-            "Merging failed from %s to %s in repo %s",
+            "Merging failed from %s to %s",
             merge_from,
             merge_to,
-            repo_name,
         )
-        errors.append(MergeProblem(repo_name, merge_from, merge_to, err))
+        errors.append(MergeProblem(merge_from, merge_to, err))
     else:
         if "Already up to date" not in message:
             git_push(merge_to)
@@ -215,9 +215,9 @@ def merge(merge_from, merge_to, repo_name):
 
 def validate_environment():
     errors_found = False
-    if "REPO_LIST" not in os.environ:
-        message = "Expected the REPO_LIST environment variable to contain a"
-        message += " comma separated list of repos to operate on"
+    if "GIT_REPO" not in os.environ:
+        message = "Expected the GIT_REPO environment variable to contain a"
+        message += " git repo url."
         LOG.error(message)
         errors_found = True
     if errors_found:
@@ -236,7 +236,7 @@ def handle_errors(merge_errors):
     with open("reports/errors.txt", "w") as file:
         for merge_error in merge_errors:
             LOG.info(merge_error)
-            file.write(merge_error.to_string_short() + "\n")
+            file.write(str(merge_error) + "\n")
     sys.exit(1)
 
 
@@ -329,18 +329,12 @@ def process_branch_config(branch_config, branch_list, upstream):
     )
     return merge_item
 
-
+ 
 def build_plan(config):
-    repo = get_repo()
-    os.makedirs("repos", exist_ok=True)
-    os.chdir("repos")
-    repo_name = get_repo_name(repo)
-    os.chdir(repo_name)
     branch_list = get_branch_list()
     plan_config = config["plan"]
     root_config = plan_config["root"]
     plan = process_branch_config(branch_config=root_config, branch_list=branch_list, upstream=None)
-    os.chdir("..")
     return plan
 
 
@@ -350,8 +344,9 @@ def main():
     init()
     clone()
     plan = build_plan(config)
-    # errors = execute_merge_plan(plans)
-    # handle_errors(errors)
+    LOG.info("Plan: %s", plan)
+    errors = merge_plan(plan)
+    handle_errors(errors)
 
 
 if __name__ == "__main__":

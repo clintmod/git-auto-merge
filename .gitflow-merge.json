@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "repo_path": "repos",
   "plan": {
     "root": {
       "selectors": [

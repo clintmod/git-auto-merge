@@ -17,7 +17,7 @@ LOG = logging.getLogger("gitflow_merge_test")
 def mock_os_makedirs(mocker):
     mocker.patch("os.makedirs")
     mocker.patch("os.chdir")
-    mocker.patch.dict("os.environ", {"REPO_LIST": "backend,mobile"})
+    mocker.patch.dict("os.environ", {"GIT_REPO": "backend"})
 
 
 @patch("argparse.ArgumentParser.parse_args")
@@ -85,13 +85,13 @@ def test_clone(execute_shell_mock):
 
 @patch("utils.execute_shell")
 def test_merge(execute_shell_mock):
-    gm.merge("asdf", "asdf", "asdf")
+    gm.merge_branches("asdf", "asdf")
     execute_shell_mock.assert_called()
 
 
 def test_merge_problem():
     err = Exception("test error")
-    mp1 = gm.MergeProblem("repo", "merge_from", "merge_to", err)
+    mp1 = gm.MergeProblem("merge_from", "merge_to", err)
     assert str(mp1)
 
 
@@ -104,13 +104,13 @@ def raise_merge_error(command):
 @patch("utils.execute_shell")
 def test_merge(execute_shell_mock):
     execute_shell_mock.side_effect = raise_merge_error
-    errors = gm.merge("from", "to", "repo")
+    errors = gm.merge_branches("from", "to")
     assert errors
 
 
 @patch("sys.exit")
 def test_validate_environment(sys_exit_mock):
-    del os.environ["REPO_LIST"]
+    del os.environ["GIT_REPO"]
     gm.validate_environment()
     sys_exit_mock.assert_called_with(1)
 
@@ -130,29 +130,12 @@ def exists_func(path):
 def test_handle_errors(log_info_mock, sys_exit_mock, exists_mock, remove_mock, mkdir_mock):
     exists_mock.side_effect = exists_func
     err1 = Exception("test error1")
-    mp1 = gm.MergeProblem("repo1", "merge_from1", "merge_to1", err1)
+    mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
     gm.handle_errors([mp1])
     log_info_mock.assert_called_with(mp1)
     sys_exit_mock.assert_called()
     remove_mock.assert_called()
     mkdir_mock.assert_called()
-
-
-@pytest.mark.skip("temp")
-@patch("gitflow_merge.get_branch_list_raw")
-def test_main_branch_supported(branches_mock):
-    branches_mock.side_effect = get_branch_list_raw
-    actual = gm.get_merge_down_branch_list()
-    expected = [
-        "main",
-        "release/2.3.0",
-        "hotfix/2.3.1-codename",
-        "release/2.4.0",
-        "hotfix/2.4.2",
-        "release/prefix-1000.1000.1000-codename",
-        "develop",
-    ]
-    assert expected == actual
 
 
 def test_load_config():
@@ -161,19 +144,32 @@ def test_load_config():
 
 @patch("gitflow_merge.init")
 @patch("utils.execute_shell")
-@pytest.mark.skip("temp")
 def test_main(init_mock, execute_shell_mock):
     gm.main()
 
 
 @patch("gitflow_merge.get_branch_list_raw")
-def test_build_plan(snapshot, branches_mock):
+def test_build_plan(branches_mock, snapshot):
     branches_mock.side_effect = get_branch_list_raw
     config = gm.load_config()
-    LOG.info(f"config = {config}")
     plan = gm.build_plan(config)
-    snapshot.assert_match(str(plan), 'test_build_plan.txt')
-    raise AssertionError()
+    snapshot.assert_match(str(plan), "test_build_plan.txt")
+
+
+@patch("gitflow_merge.get_branch_list_raw")
+def test_build_plan_works_when_only_main(branches_mock, snapshot):
+    branches_mock.return_value = "      main\n"
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    snapshot.assert_match(str(plan), "test_build_plan_works_for_main.txt")
+
+
+@patch("gitflow_merge.get_branch_list_raw")
+def test_build_plan_works_when_only_main_and_develop(branches_mock, snapshot):
+    branches_mock.return_value = "      main\n" + "      develop\n"
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    snapshot.assert_match(str(plan), "test_build_plan_works_for_main_and_develop.txt")
 
 
 def get_branch_list_raw():
