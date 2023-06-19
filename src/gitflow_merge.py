@@ -45,13 +45,12 @@ class MergeItem:
     def __str__(self):
         return_val = ""
         if self.upstream is not None:
-            return_val += f"{self.upstream.branch_name} -> {self.branch_name}"
+            return_val = f"{self.upstream.branch_name} -> {self.branch_name}"
+        else:
+            return_val = f"<root> {self.branch_name}"
         for merge_item in self.downstream:
             return_val += "\n{}{}".format("  " * self.depth(), str(merge_item))
         return return_val
-
-    def __repr__(self):
-        return self.branch_name
 
 
 class VersionedBranch:
@@ -71,9 +70,6 @@ class VersionedBranch:
     def __str__(self):
         return self.name
 
-    def __repr__(self):
-        return self.name
-
     def __lt__(self, item):
         return Version(self.version) < Version(item.version)
 
@@ -89,9 +85,6 @@ class MergeProblem:
         self.error = error
 
     def __str__(self):
-        return self.to_string()
-
-    def __repr__(self):
         return self.to_string()
 
     def to_string(self):
@@ -178,14 +171,19 @@ def clone():
 def git_push(branch):
     if DRY_RUN:
         LOG.info(f"dry run: skipping push for {branch}")
-    else:
-        utils.execute_shell(f"git push origin {branch}")
+        return False
+    utils.execute_shell(f"git push origin {branch}")
+    return True
 
 
-def merge_plan(plan):
-    assert plan is not None
-    if plan.upstream is not None:
-        merge_branches(plan.upstream.branch_name, plan.branch_name)
+def merge_all(merge_item: MergeItem, errors=None):
+    errors = errors or []
+    assert merge_item is not None
+    if merge_item.upstream is not None:
+        errors += merge_branches(merge_item.upstream.branch_name, merge_item.branch_name)
+    for downstream in merge_item.downstream:
+        merge_all(downstream, errors)
+    return errors
 
 
 def merge_branches(merge_from, merge_to):
@@ -232,8 +230,7 @@ def handle_errors(merge_errors):
         os.remove("reports/errors.txt")
     if not os.path.exists("reports"):
         os.mkdir("reports")
-    # pylint: disable=unspecified-encoding
-    with open("reports/errors.txt", "w") as file:
+    with open("reports/errors.txt", "w",  encoding="utf-8") as file:
         for merge_error in merge_errors:
             LOG.info(merge_error)
             file.write(str(merge_error) + "\n")
@@ -253,7 +250,7 @@ def process_regex_selector_config(regex, branch_list):
     return selected_branches
 
 
-def process_versioned_branches(selected_branches, upstream):
+def process_versioned_branches(selected_branches, upstream: MergeItem):
     versioned_branches = []
     for branch in selected_branches:
         versioned_branches.append(VersionedBranch(branch))
@@ -264,7 +261,7 @@ def process_versioned_branches(selected_branches, upstream):
     return new_merge_item
 
 
-def process_branches(selected_branches, upstream):
+def process_branches(selected_branches, upstream: MergeItem):
     for branch in selected_branches:
         upstream.add_downstream_branch(branch)
 
@@ -276,11 +273,12 @@ def process_selector_config(selector_config, branch_list):
             regex=selector_config["regex"], branch_list=branch_list
         )
     elif "name" in selector_config:
-        selected_branches.append(selector_config["name"])
+        if selector_config["name"] in branch_list:
+            selected_branches.append(selector_config["name"])
     return selected_branches
 
 
-def select_branches(branch_list, selectors_config):
+def select_branches(branch_list, selectors_config) -> list:
     selected_branches = []
     for selector_config in selectors_config:
         selected_branches += process_selector_config(
@@ -289,13 +287,19 @@ def select_branches(branch_list, selectors_config):
     return selected_branches
 
 
-def process_selectors_config(selectors_config, branch_list, upstream, sort_type=""):
-    return_val = upstream or MergeItem(upstream=upstream)
+def process_selectors_config(
+    selectors_config, branch_list, upstream: MergeItem, sort_type=""
+) -> MergeItem:
+    LOG.debug("selectors_config = %s, upstream = %s", selectors_config, upstream)
+    return_val = upstream or MergeItem()
     selected_branches = select_branches(branch_list=branch_list, selectors_config=selectors_config)
     if len(selected_branches) == 0:
         LOG.warning(f"No branches matched for {selectors_config}")
     if len(selected_branches) == 1:
-        return_val.branch_name = str(selected_branches[0])
+        if upstream is not None:
+            return_val = upstream.add_downstream_branch(selected_branches[0])
+        else:
+            return_val.branch_name = str(selected_branches[0])
     else:
         if sort_type == "version":
             return_val = process_versioned_branches(
@@ -306,7 +310,7 @@ def process_selectors_config(selectors_config, branch_list, upstream, sort_type=
     return return_val
 
 
-def process_branches_config(branches_config, branch_list, upstream):
+def process_branches_config(branches_config, branch_list, upstream: MergeItem):
     for key in branches_config:
         branch_config = branches_config[key]
         process_branch_config(
@@ -314,7 +318,7 @@ def process_branches_config(branches_config, branch_list, upstream):
         )
 
 
-def process_branch_config(branch_config, branch_list, upstream):
+def process_branch_config(branch_config, branch_list, upstream: MergeItem) -> MergeItem:
     selectors_config = branch_config.get("selectors")
     sort_type = branch_config.get("sort")
     merge_item = process_selectors_config(
@@ -329,8 +333,8 @@ def process_branch_config(branch_config, branch_list, upstream):
     )
     return merge_item
 
- 
-def build_plan(config):
+
+def build_plan(config) -> MergeItem:
     branch_list = get_branch_list()
     plan_config = config["plan"]
     root_config = plan_config["root"]
@@ -339,13 +343,13 @@ def build_plan(config):
 
 
 def main():
-    config = load_config()
-    validate_environment()
     init()
+    validate_environment()
     clone()
+    config = load_config()
     plan = build_plan(config)
     LOG.info("Plan: %s", plan)
-    errors = merge_plan(plan)
+    errors = merge_all(plan)
     handle_errors(errors)
 
 

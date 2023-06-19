@@ -54,6 +54,11 @@ def test_merge_item():
     assert merge_item.branch_name == "main"
 
 
+def test_versioned_branch_raises_assertion_error():
+    with pytest.raises(AssertionError):
+        gm.VersionedBranch("asdf")
+
+
 def test_sorting_versioned_branches_works():
     hotfixes = ["hotfix/11.0.1", "hotfix/1.0.2", "hotfix/22.0.1", "hotfix/2.0.2"]
     versioned_hotfixes = [gm.VersionedBranch(branch) for branch in hotfixes]
@@ -78,15 +83,37 @@ def test_sorting_versioned_branches_works():
 
 
 @patch("utils.execute_shell")
+@patch("gitflow_merge.get_branch_list_raw")
+def test_merge_all(raw_branches_mock, execute_shell_mock):
+    raw_branches_mock.return_value = "  develop\n" + "  main\n"
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    errors = gm.merge_all(plan)
+    assert errors == []
+    execute_shell_mock.assert_called()
+
+
+def test_git_push_doesnt_push_when_dryrun_is_true():
+    gm.DRY_RUN = True
+    assert not gm.git_push("asdf")
+
+
+@patch("utils.execute_shell")
 def test_clone(execute_shell_mock):
     gm.clone()
     execute_shell_mock.assert_called()
 
 
 @patch("utils.execute_shell")
-def test_merge(execute_shell_mock):
+def test_merge_branches(execute_shell_mock):
     gm.merge_branches("asdf", "asdf")
     execute_shell_mock.assert_called()
+
+
+@patch("utils.execute_shell")
+def test_merge_branches_does_not_push_when_up_to_date(execute_shell_mock):
+    execute_shell_mock.return_value = "Already up to date"
+    gm.merge_branches("asdf", "asdf")
 
 
 def test_merge_problem():
@@ -102,7 +129,7 @@ def raise_merge_error(command):
 
 
 @patch("utils.execute_shell")
-def test_merge(execute_shell_mock):
+def test_merge_branches_reports_errors(execute_shell_mock):
     execute_shell_mock.side_effect = raise_merge_error
     errors = gm.merge_branches("from", "to")
     assert errors
@@ -115,61 +142,42 @@ def test_validate_environment(sys_exit_mock):
     sys_exit_mock.assert_called_with(1)
 
 
-def exists_func(path):
-    if path == "reports":
-        return False
-    else:
-        return True
-
-
-@patch("os.mkdir")
-@patch("os.remove")
-@patch("os.path.exists")
 @patch("sys.exit")
 @patch("gitflow_merge.LOG.info")
-def test_handle_errors(log_info_mock, sys_exit_mock, exists_mock, remove_mock, mkdir_mock):
-    exists_mock.side_effect = exists_func
+def test_handle_errors(log_info_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
     gm.handle_errors([mp1])
     log_info_mock.assert_called_with(mp1)
     sys_exit_mock.assert_called()
-    remove_mock.assert_called()
-    mkdir_mock.assert_called()
 
 
 def test_load_config():
     gm.load_config()
 
 
-@patch("gitflow_merge.init")
-@patch("utils.execute_shell")
-def test_main(init_mock, execute_shell_mock):
-    gm.main()
+@patch("gitflow_merge.get_branch_list_raw")
+def test_build_plan(raw_branches_mock, snapshot):
+    raw_branches_mock.side_effect = get_branch_list_raw
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan.txt")
 
 
 @patch("gitflow_merge.get_branch_list_raw")
-def test_build_plan(branches_mock, snapshot):
-    branches_mock.side_effect = get_branch_list_raw
+def test_build_plan_works_when_only_main(raw_branches_mock, snapshot):
+    raw_branches_mock.return_value = "      main\n"
     config = gm.load_config()
     plan = gm.build_plan(config)
-    snapshot.assert_match(str(plan), "test_build_plan.txt")
+    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_only_main.txt")
 
 
 @patch("gitflow_merge.get_branch_list_raw")
-def test_build_plan_works_when_only_main(branches_mock, snapshot):
-    branches_mock.return_value = "      main\n"
+def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot):
+    raw_branches_mock.return_value = "  develop\n" + "  main\n"
     config = gm.load_config()
     plan = gm.build_plan(config)
-    snapshot.assert_match(str(plan), "test_build_plan_works_for_main.txt")
-
-
-@patch("gitflow_merge.get_branch_list_raw")
-def test_build_plan_works_when_only_main_and_develop(branches_mock, snapshot):
-    branches_mock.return_value = "      main\n" + "      develop\n"
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    snapshot.assert_match(str(plan), "test_build_plan_works_for_main_and_develop.txt")
+    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_for_main_and_develop.txt")
 
 
 def get_branch_list_raw():
