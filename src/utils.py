@@ -2,7 +2,7 @@ import logging
 from subprocess import PIPE, STDOUT, CalledProcessError, run
 
 # pylint: disable=invalid-name
-log = logging.getLogger("gitflow_merge.utils")
+log = logging.getLogger("git_auto_merge.utils")
 
 
 def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):

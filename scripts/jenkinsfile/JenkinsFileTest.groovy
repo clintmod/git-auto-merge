@@ -133,7 +133,7 @@ class JenkinsFileTest extends GroovyTestCase {
         Running stage: Run
         Running sh command: make run
         Running post build actions
-        slackSend channel:#alerts-gitflow-merge message:Build fixed: asdf 1 (<asdf2/|Open>) color:good
+        slackSend channel:#alerts-git-auto-merge message:Build fixed: asdf 1 (<asdf2/|Open>) color:good
         """.stripIndent()
 
     def expectedFailure = """\
@@ -154,7 +154,7 @@ class JenkinsFileTest extends GroovyTestCase {
         Running post build actions
         Build failure
         Build failed: asdf 1 (<asdf2/|Open>)
-        slackSend channel:#alerts-gitflow-merge message:Build failed: asdf 1 (<asdf2/|Open>) color:danger
+        slackSend channel:#alerts-git-auto-merge message:Build failed: asdf 1 (<asdf2/|Open>) color:danger
         """.stripIndent()
 
     def expectedError = """\
@@ -167,6 +167,6 @@ class JenkinsFileTest extends GroovyTestCase {
         Running post build actions
         Build failure
         Build failed: asdf 1 (<asdf2/|Open>)
-        slackSend channel:#alerts-gitflow-merge message:Build failed: asdf 1 (<asdf2/|Open>) color:danger
+        slackSend channel:#alerts-git-auto-merge message:Build failed: asdf 1 (<asdf2/|Open>) color:danger
         """.stripIndent()
 }

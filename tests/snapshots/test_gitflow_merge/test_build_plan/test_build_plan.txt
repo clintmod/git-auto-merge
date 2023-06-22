@@ -6,7 +6,6 @@ main -> release/2.3.0
         hotfix/2.4.2 -> release/prefix-1000.1000.1000-codename
           release/prefix-1000.1000.1000-codename -> develop
             develop -> feature/DOK-126
-            develop -> feature/DOK-254-logging-nodeploy
             develop -> feature/DOK-545-staticdb
             develop -> feature/TICKET-1087
             develop -> feature/TICKET-1087-staticdb

@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "gitflow-merge"
+name = "git-auto-merge"
 version = "0.1.0"
 description = ""
 authors = ["Clint M <cmodien@gmail.com>"]

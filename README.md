@@ -1,4 +1,4 @@
-# gitflow-merge
+# git-auto-merge
 
 A tool to automatically merge branches using.
 

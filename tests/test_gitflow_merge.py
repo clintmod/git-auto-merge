@@ -8,9 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
-import gitflow_merge as gm
+import git_auto_merge as gm
 
-LOG = logging.getLogger("gitflow_merge_test")
+LOG = logging.getLogger("git_auto_merge_test")
 
 
 @pytest.fixture(autouse=True)
@@ -83,7 +83,7 @@ def test_sorting_versioned_branches_works():
 
 
 @patch("utils.execute_shell")
-@patch("gitflow_merge.get_branch_list_raw")
+@patch("git_auto_merge.get_branch_list_raw")
 def test_merge_all(raw_branches_mock, execute_shell_mock):
     raw_branches_mock.return_value = "  develop\n" + "  main\n"
     config = gm.load_config()
@@ -93,7 +93,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock):
     execute_shell_mock.assert_called()
 
 
-def test_git_push_doesnt_push_when_dryrun_is_true():
+def test_git_push_does_not_push_when_dryrun_is_true():
     gm.DRY_RUN = True
     assert not gm.git_push("asdf")
 
@@ -143,7 +143,7 @@ def test_validate_environment(sys_exit_mock):
 
 
 @patch("sys.exit")
-@patch("gitflow_merge.LOG.info")
+@patch("git_auto_merge.LOG.info")
 def test_handle_errors(log_info_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
@@ -156,7 +156,7 @@ def test_load_config():
     gm.load_config()
 
 
-@patch("gitflow_merge.get_branch_list_raw")
+@patch("git_auto_merge.get_branch_list_raw")
 def test_build_plan(raw_branches_mock, snapshot):
     raw_branches_mock.side_effect = get_branch_list_raw
     config = gm.load_config()
@@ -164,7 +164,7 @@ def test_build_plan(raw_branches_mock, snapshot):
     snapshot.assert_match(f"{str(plan)}\n", "test_build_plan.txt")
 
 
-@patch("gitflow_merge.get_branch_list_raw")
+@patch("git_auto_merge.get_branch_list_raw")
 def test_build_plan_works_when_only_main(raw_branches_mock, snapshot):
     raw_branches_mock.return_value = "      main\n"
     config = gm.load_config()
@@ -172,7 +172,7 @@ def test_build_plan_works_when_only_main(raw_branches_mock, snapshot):
     snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_only_main.txt")
 
 
-@patch("gitflow_merge.get_branch_list_raw")
+@patch("git_auto_merge.get_branch_list_raw")
 def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot):
     raw_branches_mock.return_value = "  develop\n" + "  main\n"
     config = gm.load_config()
@@ -188,7 +188,6 @@ def get_branch_list_raw():
         "      cm/hotfix/TICKET-1456\n"
         "      develop\n"
         "      feature/DOK-126\n"
-        "      feature/DOK-254-logging-nodeploy\n"
         "      feature/DOK-545-staticdb\n"
         "      feature/TICKET-1087\n"
         "      feature/TICKET-1087-staticdb\n"

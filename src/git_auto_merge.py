@@ -14,7 +14,7 @@ import utils
 
 DRY_RUN = False
 
-LOG = logging.getLogger("gitflow_merge")
+LOG = logging.getLogger("git_auto_merge")
 
 # pylint: disable=anomalous-backslash-in-string
 SEMVER_PATTERN = r"(\d+\.\d+\.\d+)"
@@ -115,22 +115,23 @@ def get_branch_list_raw():
     return branches_string
 
 
-def get_branch_list():
+def get_branch_list(config):
     repo_name = get_repo_name()
-    os.chdir("repos/{}".format(repo_name))
+    orig_dir = os.getcwd()
+    os.chdir(get_repo_path(config))
     branches_raw = get_branch_list_raw()
     branches = branches_raw.split("\n")
     while "" in branches:
         branches.remove("")
     LOG.debug("split branches = %s", branches)
     branches = [branch.strip() for branch in branches]
-    os.chdir("../..")
+    os.chdir(orig_dir)
     return branches
 
 
 def init():
     parser = argparse.ArgumentParser(
-        prog="gitflow-merge", description="Merge git flow branches down"
+        prog="git-auto-merge", description="Merge git flow branches down"
     )
     parser.add_argument("--verbose", "-v", action="count", help="LOG everything to the console")
     parser.add_argument(
@@ -155,8 +156,14 @@ def get_repo_name():
     return get_repo().split("/")[-1]
 
 
+def get_repo_path(config):
+    assert "repo_path" in config
+    return f"{config['repo_path']}/{get_repo_name()}"
+
+
 def clone():
     os.makedirs("repos", exist_ok=True)
+    orig_dir = os.getcwd()
     os.chdir("repos")
     command = ""
     repo = get_repo()
@@ -165,7 +172,7 @@ def clone():
     command = f"git clone {repo}"
     command += f" || cd {repo_name} && git fetch --prune && cd .."
     utils.execute_shell(command)
-    os.chdir("..")
+    os.chdir(orig_dir)
 
 
 def git_push(branch):
@@ -238,7 +245,7 @@ def handle_errors(merge_errors):
 
 
 def load_config(path=None):
-    path = path or ".gitflow-merge.json"
+    path = path or ".git-auto-merge.json"
     config = {}
     with open(path, encoding="utf-8") as file:
         config = json.load(file)
@@ -318,7 +325,7 @@ def process_branches_config(branches_config, branch_list, upstream: MergeItem):
         )
 
 
-def process_branch_config(branch_config, branch_list, upstream: MergeItem) -> MergeItem:
+def process_branch_config(branch_config, branch_list, upstream) -> MergeItem:
     selectors_config = branch_config.get("selectors")
     sort_type = branch_config.get("sort")
     merge_item = process_selectors_config(
@@ -335,7 +342,7 @@ def process_branch_config(branch_config, branch_list, upstream: MergeItem) -> Me
 
 
 def build_plan(config) -> MergeItem:
-    branch_list = get_branch_list()
+    branch_list = get_branch_list(config)
     plan_config = config["plan"]
     root_config = plan_config["root"]
     plan = process_branch_config(branch_config=root_config, branch_list=branch_list, upstream=None)
@@ -349,7 +356,10 @@ def main():
     config = load_config()
     plan = build_plan(config)
     LOG.info("Plan: %s", plan)
+    cur_dir = os.curdir
+    os.chdir(f"{get_repo_path(config)}")
     errors = merge_all(plan)
+    os.chdir(cur_dir)
     handle_errors(errors)
 
 

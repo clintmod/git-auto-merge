@@ -1,4 +1,4 @@
-GIT_REPO ?= git@github.com:clintmod/gitflow_merge_test
+GIT_REPO ?= git@github.com:clintmod/git_auto_merge_test
 
 export
 
@@ -19,10 +19,10 @@ test-update:
 
 
 dry-run:
-	poetry run src/gitflow_merge.py --dry-run
+	poetry run src/git_auto_merge.py --dry-run
 
 run:
-	poetry run src/gitflow_merge.py -v
+	poetry run src/git_auto_merge.py -v
 
 lint:
 	poetry run pylint -j4 -f colorized src
