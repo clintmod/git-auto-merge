@@ -94,7 +94,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock):
 
 
 def test_git_push_does_not_push_when_dryrun_is_true():
-    gm.DRY_RUN = True
+    gm.ARGS.dry_run = True
     assert not gm.git_push("asdf")
 
 

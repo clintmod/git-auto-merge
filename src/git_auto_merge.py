@@ -6,13 +6,14 @@ import logging
 import os
 import re
 import sys
+from argparse import Namespace
 from subprocess import CalledProcessError
 
 from packaging.version import Version
 
 import utils
 
-DRY_RUN = False
+ARGS: Namespace | None = None
 
 LOG = logging.getLogger("git_auto_merge")
 
@@ -116,7 +117,6 @@ def get_branch_list_raw():
 
 
 def get_branch_list(config):
-    repo_name = get_repo_name()
     orig_dir = os.getcwd()
     os.chdir(get_repo_path(config))
     branches_raw = get_branch_list_raw()
@@ -137,10 +137,9 @@ def init():
     parser.add_argument(
         "--dry-run", "-d", action="store_true", help="dry run. This will not push to github."
     )
-    args = parser.parse_args()
-    verbosity = 0 if args.verbose == "None" else args.verbose
-    global DRY_RUN
-    DRY_RUN = args.dry_run
+    global ARGS
+    ARGS = parser.parse_args()
+    verbosity = 0 if ARGS.verbose == "None" else ARGS.verbose
     configure_logging(verbosity)
 
 
@@ -176,7 +175,7 @@ def clone():
 
 
 def git_push(branch):
-    if DRY_RUN:
+    if ARGS.dry_run:
         LOG.info(f"dry run: skipping push for {branch}")
         return False
     utils.execute_shell(f"git push origin {branch}")
@@ -237,7 +236,7 @@ def handle_errors(merge_errors):
         os.remove("reports/errors.txt")
     if not os.path.exists("reports"):
         os.mkdir("reports")
-    with open("reports/errors.txt", "w",  encoding="utf-8") as file:
+    with open("reports/errors.txt", "w", encoding="utf-8") as file:
         for merge_error in merge_errors:
             LOG.info(merge_error)
             file.write(str(merge_error) + "\n")
