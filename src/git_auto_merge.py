@@ -179,7 +179,9 @@ def clone():
     command += f" || cd {repo_name} && git fetch --prune"
     os.chdir(f"{repo_name}")
     utils.execute_shell(command)
-    default_branch = utils.execute_shell("git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'")
+    default_branch = utils.execute_shell(
+        "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
+    )
     utils.execute_shell(f"git reset --hard HEAD && git checkout {default_branch} && git pull")
     if GIT_AUTO_MERGE_CONFIG_BRANCH is not None:
         LOG.info("checking out config branch %s", GIT_AUTO_MERGE_CONFIG_BRANCH)

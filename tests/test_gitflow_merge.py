@@ -97,7 +97,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock):
     config = gm.load_config()
     plan = gm.build_plan(config)
     errors = gm.merge_all(plan)
-    assert errors == []
+    assert not errors
     execute_shell_mock.assert_called()
 
 
