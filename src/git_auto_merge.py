@@ -8,13 +8,16 @@ import re
 import sys
 from argparse import Namespace
 from subprocess import CalledProcessError
+from typing import Any
 
 from packaging.version import Version
 
 import utils
 
-ARGS: Namespace | None = None
-
+ARGS: Namespace | None | Any = None
+GIT_AUTO_MERGE_CONFIG_BRANCH = None
+GIT_AUTO_MERGE_JSON = ".git-auto-merge.json"
+GIT_AUTO_MERGE_REPO_BASE_DIR = "repos"
 LOG = logging.getLogger("git_auto_merge")
 
 # pylint: disable=anomalous-backslash-in-string
@@ -96,14 +99,15 @@ class MergeProblem:
         return return_val
 
 
-def configure_logging(verbose):
+def configure_logging():
     stream = logging.StreamHandler(sys.stdout)
     LOG.addHandler(stream)
     log_format = "%(asctime)s %(levelname)s %(name)s %(message)s"
     formatter = logging.Formatter(log_format)
     stream.setFormatter(formatter)
     root_logger = logging.getLogger("")
-    if verbose is not None and verbose > 0 or "VERBOSE" in os.environ:
+    verbosity = ARGS.verbose or 0
+    if verbosity is not None and verbosity > 0 or "VERBOSE" in os.environ:
         root_logger.setLevel(logging.DEBUG)
         root_logger.debug("Verbose logging enabled")
     else:
@@ -116,9 +120,9 @@ def get_branch_list_raw():
     return branches_string
 
 
-def get_branch_list(config):
+def get_branch_list():
     orig_dir = os.getcwd()
-    os.chdir(get_repo_path(config))
+    os.chdir(get_repo_path())
     branches_raw = get_branch_list_raw()
     branches = branches_raw.split("\n")
     while "" in branches:
@@ -129,24 +133,28 @@ def get_branch_list(config):
     return branches
 
 
-def init():
+def parse_args():
     parser = argparse.ArgumentParser(
         prog="git-auto-merge", description="Merge git flow branches down"
     )
     parser.add_argument("--verbose", "-v", action="count", help="LOG everything to the console")
     parser.add_argument(
+        "--should-use-default-plan",
+        "-u",
+        action="store_true",
+        help="Use the default plan from the .git-auto-merge.json config file in this repo",
+    )
+    parser.add_argument(
         "--dry-run", "-d", action="store_true", help="dry run. This will not push to github."
     )
     global ARGS
     ARGS = parser.parse_args()
-    verbosity = 0 if ARGS.verbose == "None" else ARGS.verbose
-    configure_logging(verbosity)
 
 
 def get_repo():
     return_val = ""
-    if "GIT_REPO" in os.environ:
-        return_val = os.environ["GIT_REPO"]
+    if "GIT_AUTO_MERGE_REPO" in os.environ:
+        return_val = os.environ["GIT_AUTO_MERGE_REPO"]
         assert return_val != ""
     return return_val
 
@@ -155,9 +163,8 @@ def get_repo_name():
     return get_repo().split("/")[-1]
 
 
-def get_repo_path(config):
-    assert "repo_path" in config
-    return f"{config['repo_path']}/{get_repo_name()}"
+def get_repo_path():
+    return f"{GIT_AUTO_MERGE_REPO_BASE_DIR}/{get_repo_name()}"
 
 
 def clone():
@@ -169,8 +176,14 @@ def clone():
     repo_name = get_repo_name()
     LOG.info("cloning/fetching repo = %s", repo)
     command = f"git clone {repo}"
-    command += f" || cd {repo_name} && git fetch --prune && cd .."
+    command += f" || cd {repo_name} && git fetch --prune"
+    os.chdir(f"{repo_name}")
     utils.execute_shell(command)
+    default_branch = utils.execute_shell("git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'")
+    utils.execute_shell(f"git reset --hard HEAD && git checkout {default_branch} && git pull")
+    if GIT_AUTO_MERGE_CONFIG_BRANCH is not None:
+        LOG.info("checking out config branch %s", GIT_AUTO_MERGE_CONFIG_BRANCH)
+        utils.execute_shell(f"git checkout {GIT_AUTO_MERGE_CONFIG_BRANCH}")
     os.chdir(orig_dir)
 
 
@@ -219,8 +232,8 @@ def merge_branches(merge_from, merge_to):
 
 def validate_environment():
     errors_found = False
-    if "GIT_REPO" not in os.environ:
-        message = "Expected the GIT_REPO environment variable to contain a"
+    if "GIT_AUTO_MERGE_REPO" not in os.environ:
+        message = "Expected the GIT_AUTO_MERGE_REPO environment variable to contain a"
         message += " git repo url."
         LOG.error(message)
         errors_found = True
@@ -243,9 +256,34 @@ def handle_errors(merge_errors):
     sys.exit(1)
 
 
-def load_config(path=None):
-    path = path or ".git-auto-merge.json"
+def load_env():
+    if os.environ.get("GIT_AUTO_MERGE_JSON"):
+        global GIT_AUTO_MERGE_JSON
+        GIT_AUTO_MERGE_JSON = os.environ["GIT_AUTO_MERGE_JSON"]
+    if os.environ.get("GIT_AUTO_MERGE_REPO_BASE_DIR"):
+        global GIT_AUTO_MERGE_REPO_BASE_DIR
+        GIT_AUTO_MERGE_REPO_BASE_DIR = os.environ["GIT_AUTO_MERGE_REPO_BASE_DIR"]
+    if os.environ.get("GIT_AUTO_MERGE_CONFIG_BRANCH"):
+        global GIT_AUTO_MERGE_CONFIG_BRANCH
+        GIT_AUTO_MERGE_CONFIG_BRANCH = os.environ["GIT_AUTO_MERGE_CONFIG_BRANCH"]
+
+
+def load_config():
     config = {}
+    path = f"{get_repo_path()}/{GIT_AUTO_MERGE_JSON}"
+    if os.path.exists(path):
+        config = load_config_from_path(path)
+    elif os.path.exists(GIT_AUTO_MERGE_JSON) and ARGS.should_use_default_plan:
+        config = load_config_from_path(GIT_AUTO_MERGE_JSON)
+    else:
+        raise ValueError(
+            f"No config file found at {path} and --should-use-default-plan was not specified."
+        )
+    return config
+
+
+def load_config_from_path(path):
+    LOG.info("Loading config from path %s", path)
     with open(path, encoding="utf-8") as file:
         config = json.load(file)
     return config
@@ -341,22 +379,26 @@ def process_branch_config(branch_config, branch_list, upstream) -> MergeItem:
 
 
 def build_plan(config) -> MergeItem:
-    branch_list = get_branch_list(config)
+    branch_list = get_branch_list()
     plan_config = config["plan"]
+    if not plan_config:
+        raise ValueError("No plan found in config")
     root_config = plan_config["root"]
     plan = process_branch_config(branch_config=root_config, branch_list=branch_list, upstream=None)
     return plan
 
 
 def main():
-    init()
+    parse_args()
+    configure_logging()
     validate_environment()
+    load_env()
     clone()
     config = load_config()
     plan = build_plan(config)
     LOG.info("Plan: %s", plan)
     cur_dir = os.curdir
-    os.chdir(f"{get_repo_path(config)}")
+    os.chdir(f"{get_repo_path()}")
     errors = merge_all(plan)
     os.chdir(cur_dir)
     handle_errors(errors)

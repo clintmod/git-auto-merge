@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 import logging
 import os
 import sys
@@ -10,6 +11,9 @@ import pytest
 
 import git_auto_merge as gm
 
+gm.ARGS = argparse.Namespace()
+gm.ARGS.use_default_plan = True
+
 LOG = logging.getLogger("git_auto_merge_test")
 
 
@@ -17,13 +21,13 @@ LOG = logging.getLogger("git_auto_merge_test")
 def mock_os_makedirs(mocker):
     mocker.patch("os.makedirs")
     mocker.patch("os.chdir")
-    mocker.patch.dict("os.environ", {"GIT_REPO": "backend"})
+    mocker.patch.dict("os.environ", {"GIT_AUTO_MERGE_REPO": "backend"})
 
 
 @patch("argparse.ArgumentParser.parse_args")
-def test_init(parse_args_mock):
+def test_parse_args(parse_args_mock):
     parse_args_mock.return_value.verbose = 1
-    gm.init()
+    gm.parse_args()
 
 
 def execute_shell_func(command):
@@ -32,18 +36,22 @@ def execute_shell_func(command):
 
 
 def test_configure_logging():
-    gm.configure_logging(0)
+    gm.ARGS = argparse.Namespace()
+    gm.ARGS.verbose = None
+    gm.configure_logging()
     assert logging.INFO == logging.getLogger("").level
 
 
 def test_configure_logging_verbose():
-    gm.configure_logging(1)
+    gm.ARGS = argparse.Namespace()
+    gm.ARGS.verbose = 1
+    gm.configure_logging()
     assert logging.DEBUG == logging.getLogger("").level
 
 
 @patch("utils.execute_shell")
 def test_main(execute_shell_mock):
-    sys.argv = ["-d"]
+    sys.argv = ["-d", "-u"]
     gm.main()
     execute_shell_mock.assert_called()
 
@@ -137,7 +145,7 @@ def test_merge_branches_reports_errors(execute_shell_mock):
 
 @patch("sys.exit")
 def test_validate_environment(sys_exit_mock):
-    del os.environ["GIT_REPO"]
+    del os.environ["GIT_AUTO_MERGE_REPO"]
     gm.validate_environment()
     sys_exit_mock.assert_called_with(1)
 

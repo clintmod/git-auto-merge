@@ -1,4 +1,4 @@
-GIT_REPO ?= git@github.com:clintmod/git_auto_merge_test
+GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod/git_auto_merge_test
 
 export
 
