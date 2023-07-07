@@ -101,15 +101,16 @@ class MergeProblem:
 
 def configure_logging():
     stream = logging.StreamHandler(sys.stdout)
-    LOG.addHandler(stream)
     log_format = "%(asctime)s %(levelname)s %(name)s %(message)s"
     formatter = logging.Formatter(log_format)
     stream.setFormatter(formatter)
     root_logger = logging.getLogger("")
+    root_logger.addHandler(stream)
     verbosity = ARGS.verbose or 0
-    if verbosity is not None and verbosity > 0 or "VERBOSE" in os.environ:
+    LOG.info('verbosity = "%s"', verbosity)
+    if verbosity or "DEBUG" in os.environ:
         root_logger.setLevel(logging.DEBUG)
-        root_logger.debug("Verbose logging enabled")
+        root_logger.info("Verbose logging enabled")
     else:
         root_logger.setLevel(logging.INFO)
 
@@ -168,17 +169,25 @@ def get_repo_path():
 
 
 def clone():
+    err = None
     os.makedirs("repos", exist_ok=True)
     orig_dir = os.getcwd()
     os.chdir("repos")
-    command = ""
     repo = get_repo()
     repo_name = get_repo_name()
-    LOG.info("cloning/fetching repo = %s", repo)
-    command = f"git clone {repo}"
-    command += f" || cd {repo_name} && git fetch --prune"
-    os.chdir(f"{repo_name}")
-    utils.execute_shell(command)
+    try:
+        LOG.info("Attempting cloning repo = %s", repo)
+        LOG.info("This may fail if the repo already exists")
+        command = f" git clone {repo}"
+        utils.execute_shell(command)
+    except CalledProcessError as err:  #  pylint: disable=broad-exception-caught
+        if "already exists" in err.output:
+            LOG.info("Trying to fetch repo %s instead", repo)
+            command = f"cd {repo_name} && git fetch --prune"
+            utils.execute_shell(command)
+        else:
+            raise
+    os.chdir(repo_name)
     default_branch = utils.execute_shell(
         "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
     )

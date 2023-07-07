@@ -1,5 +1,5 @@
 POETRY_VIRTUALENVS_IN_PROJECT = true
-GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod/git_auto_merge_test
+GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod1/git_auto_merge_test
 
 export
 
@@ -45,7 +45,7 @@ dry-run:
 	poetry run $(BIN) --dry-run
 
 run:
-	poetry run $(BIN)
+	poetry run $(BIN) $(EXTRA_RUN_ARGS)
 
 reports/lint.ansi: $(SRC)
 	poetry run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
@@ -54,6 +54,36 @@ lint: reports/lint.ansi
 
 clean-reports:
 	rm -rf reports/*
+
+docker-build:
+	docker build \
+		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
+		-t clintmod/git-auto-merge \
+	.
+
+docker-build-builder:
+	docker build \
+		--target=builder \
+		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
+		-t clintmod/git-auto-merge:builder \
+	.
+
+docker-shell:
+	docker run \
+		-it --rm --entrypoint= \
+		-e GIT_AUTO_MERGE_REPO=git@github.com:clintmod/git_auto_merge_test \
+		-e DEBUG=1 \
+		-v $(HOME)/.ssh:/home/app/.ssh \
+	clintmod/git-auto-merge \
+	bash
+
+docker-run:
+	docker run \
+		-it --rm \
+		-e GIT_AUTO_MERGE_REPO=git@github.com:clintmod/git_auto_merge_test \
+		-e DEBUG=1 \
+		-v $(HOME)/.ssh:/home/app/.ssh \
+	clintmod/git-auto-merge
 
 test-jenkinsfile:
 	docker run --rm -v $(PWD):/home/groovy/app groovy:3.0.6 \

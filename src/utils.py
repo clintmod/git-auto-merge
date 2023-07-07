@@ -1,17 +1,16 @@
 import logging
 from subprocess import PIPE, STDOUT, CalledProcessError, run
 
-# pylint: disable=invalid-name
-log = logging.getLogger("git_auto_merge.utils")
+LOG = logging.getLogger("git_auto_merge.utils")
 
 
 def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):
     output = ""
-    log.debug("--- executing shell command ----")
-    log.debug("setting working dir to: %s", cwd)
-    log.info("command: %s", str(command))
+    LOG.debug("--- executing shell command ----")
+    LOG.debug("setting working dir to: %s", cwd)
+    LOG.info("command: %s", str(command))
     try:
-        cp = run(
+        proc = run(
             command,
             shell=is_shell,
             cwd=cwd,
@@ -20,12 +19,12 @@ def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):
             stdout=PIPE,
             universal_newlines=True,
         )
-        log.debug("cp = %s", str(cp))
-        output = cp.stdout.strip()
-        log.info("output = %s", output)
+        LOG.debug("proc = %s", str(proc))
+        output = proc.stdout.strip()
+        LOG.info("output = %s", output)
     except CalledProcessError as err:
-        log.error(
-            "Error Info:\nerror code = %s\ncmd %s\nerror message:%s",
+        LOG.error(
+            "\nError Info:\nerror code = %s\ncmd %s\nerror message:%s",
             err.returncode,
             err.cmd,
             err.output,
@@ -33,5 +32,5 @@ def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):
         if not suppress_errors:
             raise
     finally:
-        log.debug("---- shell execution finished ---")
+        LOG.debug("---- shell execution finished ---")
     return output

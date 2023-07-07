@@ -49,6 +49,12 @@ def test_configure_logging_verbose():
     assert logging.DEBUG == logging.getLogger("").level
 
 
+def test_configure_logging_verbose_with_env():
+    os.environ["DEBUG"] = "1"
+    gm.configure_logging()
+    assert logging.DEBUG == logging.getLogger("").level
+
+
 @patch("utils.execute_shell")
 def test_main(execute_shell_mock):
     sys.argv = ["-d", "-u"]
