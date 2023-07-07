@@ -1,0 +1,23 @@
+<root> main
+main -> release/2.3.0
+  release/2.3.0 -> hotfix/2.3.1-codename
+    hotfix/2.3.1-codename -> release/2.4.0
+      release/2.4.0 -> hotfix/2.4.2
+        hotfix/2.4.2 -> release/prefix-1000.1000.1000-codename
+          release/prefix-1000.1000.1000-codename -> develop
+            develop -> feature/DOK-126
+            develop -> feature/DOK-545-staticdb
+            develop -> feature/TICKET-1087
+            develop -> feature/TICKET-1087-staticdb
+            develop -> feature/TICKET-1128
+            develop -> feature/TICKET-1224
+            develop -> feature/TICKET-1224-cleanup
+            develop -> feature/TICKET-1331
+            develop -> feature/TICKET-1368
+            develop -> feature/TICKET-1397-staticdb
+            develop -> feature/TICKET-1422-staticdb
+            develop -> feature/TICKET-1441
+            develop -> feature/TICKET-922
+            develop -> feature/default-staticdb
+            develop -> feature/demo-staticdb
+            develop -> feature/unpin-pylint

@@ -67,7 +67,7 @@ def postBuildActions() {
   try {
     String currentResult = currentBuild.result ?: 'SUCCESS'
     String previousResult = currentBuild.previousBuild.result ?: 'SUCCESS'
-    def channel = "#alerts-gitflow-merge"
+    def channel = "#alerts-git-auto-merge"
     if (previousResult != currentResult) {
       if (currentResult == 'FAILURE') {
         echo "Build failure"

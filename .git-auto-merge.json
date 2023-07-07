@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "repo_path": "repos",
+  "plan": {
+    "root": {
+      "selectors": [
+        {"name": "main"}
+      ],
+      "downstream": {
+        
+        "release": {
+          "sort": "version",
+          "selectors": [
+            {"regex": "^hotfix/.*(?:(\\d+\\.[.\\d]*\\d+)).*"},
+            {"regex": "^release/.*(?:(\\d+\\.[.\\d]*\\d+)).*"}
+          ],
+          "downstream": {
+            "develop": {
+              "selectors": [
+                {"name": "develop"}
+              ],
+              "downstream": {
+                "feature": {
+                  "selectors": [
+                    {"regex": "^feature/.*"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
