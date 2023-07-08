@@ -21,7 +21,13 @@ LOG = logging.getLogger("git_auto_merge_test")
 def mock_os_makedirs(mocker):
     mocker.patch("os.makedirs")
     mocker.patch("os.chdir")
-    mocker.patch.dict("os.environ", {"GIT_AUTO_MERGE_REPO": "backend"})
+    mocker.patch.dict(
+        "os.environ", {"GIT_AUTO_MERGE_REPO": "git@github.com:clintmod/git_auto_merge_test.git"}
+    )
+
+
+def test_get_repo_name():
+    assert "git_auto_merge_test" == gm.get_repo_name()
 
 
 @patch("argparse.ArgumentParser.parse_args")
