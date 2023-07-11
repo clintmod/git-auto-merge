@@ -9,7 +9,9 @@ export
 
 BIN = .venv/bin/git-auto-merge
 VERSION = 1.0.1
-SRC = Makefile .venv pyproject.toml $(shell find src tests -name '*.py')
+SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
+	  $(shell find src tests -name '*.py') \
+	  $(shell find tests -name '*.txt')
 
 $(BIN): pyproject.toml Makefile .venv
 	poetry install

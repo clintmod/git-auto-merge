@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import argparse
 import logging
 import os
 import sys
@@ -11,8 +10,7 @@ import pytest
 
 import git_auto_merge as gm
 
-gm.ARGS = argparse.Namespace()
-gm.ARGS.use_default_plan = True
+gm.CLI_ARGS.should_use_default_plan = True
 
 LOG = logging.getLogger("git_auto_merge_test")
 
@@ -42,15 +40,13 @@ def execute_shell_func(command):
 
 
 def test_configure_logging():
-    gm.ARGS = argparse.Namespace()
-    gm.ARGS.verbose = None
+    gm.CLI_ARGS.verbose = 0
     gm.configure_logging()
     assert logging.INFO == logging.getLogger("").level
 
 
 def test_configure_logging_verbose():
-    gm.ARGS = argparse.Namespace()
-    gm.ARGS.verbose = 1
+    gm.CLI_ARGS.verbose = 1
     gm.configure_logging()
     assert logging.DEBUG == logging.getLogger("").level
 
@@ -70,7 +66,7 @@ def test_main(execute_shell_mock):
 
 def test_merge_item():
     branch_name = "main"
-    merge_item = gm.MergeItem(branch_name)
+    merge_item = gm.MergeItem(group="", branch_name=branch_name)
     assert merge_item.branch_name == "main"
 
 
@@ -114,7 +110,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock):
 
 
 def test_git_push_does_not_push_when_dryrun_is_true():
-    gm.ARGS.dry_run = True
+    gm.CLI_ARGS.dry_run = True
     assert not gm.git_push("asdf")
 
 
@@ -220,6 +216,7 @@ def get_branch_list_raw():
         "      feature/TICKET-1422-staticdb\n"
         "      feature/TICKET-1441\n"
         "      feature/TICKET-922\n"
+        "      bugfix/2.4.0/asdf2\n"
         "      feature/default-staticdb\n"
         "      feature/demo-staticdb\n"
         "      feature/unpin-pylint\n"
