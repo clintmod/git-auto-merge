@@ -8,7 +8,7 @@ export
 .PHONY: test-update
 
 BIN = .venv/bin/git-auto-merge
-VERSION = 1.0.1
+VERSION = 1.1.0
 SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
 	  $(shell find src tests -name '*.py') \
 	  $(shell find tests -name '*.txt')
