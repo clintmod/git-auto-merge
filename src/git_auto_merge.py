@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-from typing import Self, Optional
-
 import argparse
 import json
 import logging
@@ -9,6 +7,7 @@ import re
 import sys
 from dataclasses import dataclass
 from subprocess import CalledProcessError
+from typing import Optional, Self
 
 from packaging.version import Version
 
@@ -42,7 +41,7 @@ class MergeItem:
     branch_name = ""
     version = ""
     group = ""
-    upstream:Optional[Self] = None
+    upstream: Optional[Self] = None
     downstream = []
 
     def __init__(self, group, branch_name="", version="", upstream=None, downstream=None):
@@ -58,7 +57,6 @@ class MergeItem:
         merge_item = MergeItem(branch_name=branch, group=group, version=version, upstream=self)
         self.downstream.append(merge_item)
         return merge_item
-
 
     def depth(self):
         if self.upstream is None:
@@ -134,11 +132,11 @@ def configure_logging():
 
 
 def get_merge_items_in_group(merge_item, group):
-        return_val = []
-        if merge_item and merge_item.group == group:
-            return_val.append(merge_item)
-            return get_merge_items_in_group(merge_item.upstream, group) + return_val
-        return return_val
+    return_val = []
+    if merge_item and merge_item.group == group:
+        return_val.append(merge_item)
+        return get_merge_items_in_group(merge_item.upstream, group) + return_val
+    return return_val
 
 
 def get_branch_list_raw():
@@ -204,8 +202,8 @@ def clone():
     repo = get_repo()
     repo_name = get_repo_name()
     try:
-        LOG.info("Attempting cloning repo = %s", repo)
-        LOG.info("This may fail if the repo already exists")
+        LOG.info("Attempting to clone repo = %s", repo)
+        LOG.warn("This may fail if the repo already exists")
         command = f" git clone {repo}"
         utils.execute_shell(command)
     except CalledProcessError as err:  #  pylint: disable=broad-exception-caught
@@ -315,9 +313,9 @@ def load_config():
     elif os.path.exists(config_file_in_repo_path):
         config = load_config_from_path(config_file_in_repo_path)
     else:
-        raise ValueError(
-            f"No config file found at {config_file_in_repo_path} and --should-use-default-plan was not specified."
-        )
+        msg = f"No config file found at {config_file_in_repo_path} \
+                and --should-use-default-plan was not specified."
+        raise ValueError(msg)
     return config
 
 
@@ -408,19 +406,17 @@ def process_branches_config(branches_config, branch_list, upstream: MergeItem):
 def process_downstream_for_each_config(
     merge_item: MergeItem, group, downstream_for_each_config, branch_list
 ):
-    matchOn = downstream_for_each_config.get("matchOn")
+    match_on = downstream_for_each_config.get("matchOn")
     selector_config = downstream_for_each_config.get("matchedSelectors")
-    matching_branches = select_branches(
-        branch_list=branch_list, selectors_config=selector_config
-    )
+    matching_branches = select_branches(branch_list=branch_list, selectors_config=selector_config)
     merge_items_in_group = get_merge_items_in_group(merge_item, merge_item.group)
     for item in merge_items_in_group:
         for branch in matching_branches:
-            if matchOn == "version":
+            if match_on == "version":
                 versioned_branch = VersionedBranch(branch)
                 if item.version == versioned_branch.version:
                     item.add_downstream_branch(branch=branch, group=group)
-            if matchOn == "branch":
+            if match_on == "branch":
                 if branch in item.branch_name:
                     item.add_downstream_branch(branch=branch, group=group)
 

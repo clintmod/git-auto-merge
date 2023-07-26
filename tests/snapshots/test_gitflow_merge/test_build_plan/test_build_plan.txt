@@ -2,7 +2,6 @@
 main -> release/2.3.0
   release/2.3.0 -> hotfix/2.3.1-codename
     hotfix/2.3.1-codename -> release/2.4.0
-      release/2.4.0 -> bugfix/2.4.0/asdf2
       release/2.4.0 -> hotfix/2.4.2
         hotfix/2.4.2 -> release/prefix-1000.1000.1000-codename
           release/prefix-1000.1000.1000-codename -> develop
@@ -22,3 +21,4 @@ main -> release/2.3.0
             develop -> feature/default-staticdb
             develop -> feature/demo-staticdb
             develop -> feature/unpin-pylint
+      release/2.4.0 -> bugfix/2.4.0/asdf2
