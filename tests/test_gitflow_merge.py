@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import logging
 import os
 import sys
 from subprocess import CalledProcessError
@@ -11,8 +10,6 @@ import pytest
 import git_auto_merge as gm
 
 gm.CLI_ARGS.should_use_default_plan = True
-
-LOG = logging.getLogger("git_auto_merge_test")
 
 
 @pytest.fixture(autouse=True)
@@ -40,21 +37,22 @@ def execute_shell_func(command):
 
 
 def test_configure_logging():
-    gm.CLI_ARGS.verbose = 0
-    gm.configure_logging()
-    assert logging.INFO == logging.getLogger("").level
+    gm.CLI_ARGS.log_level = "INFO"
+    level = gm.configure_logging()
+    assert "INFO" == level
 
 
 def test_configure_logging_verbose():
-    gm.CLI_ARGS.verbose = 1
-    gm.configure_logging()
-    assert logging.DEBUG == logging.getLogger("").level
+    gm.CLI_ARGS.log_level = "DEBUG"
+    level = gm.configure_logging()
+    assert "DEBUG" == level
 
 
 def test_configure_logging_verbose_with_env():
-    os.environ["DEBUG"] = "1"
-    gm.configure_logging()
-    assert logging.DEBUG == logging.getLogger("").level
+    os.environ["GIT_AUTO_MERGE_LOG_LEVEL"] = "DEBUG"
+    level = gm.configure_logging()
+    assert "DEBUG" == level
+    del os.environ["GIT_AUTO_MERGE_LOG_LEVEL"]
 
 
 @patch("utils.execute_shell")
@@ -159,7 +157,7 @@ def test_validate_environment(sys_exit_mock):
 
 
 @patch("sys.exit")
-@patch("git_auto_merge.LOG.info")
+@patch("git_auto_merge.logger.info")
 def test_handle_errors(log_info_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
