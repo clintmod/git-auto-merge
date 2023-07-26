@@ -7,13 +7,18 @@
         {"name": "main"}
       ],
       "downstream": {
-        
         "release": {
           "sort": "version",
           "selectors": [
             {"regex": "^hotfix/.*(?:(\\d+\\.[.\\d]*\\d+)).*"},
             {"regex": "^release/.*(?:(\\d+\\.[.\\d]*\\d+)).*"}
           ],
+          "downstreamForEach": {
+            "matchOn":"version",
+            "matchedSelectors": [
+              {"regex": "^bugfix/(?:(\\d+\\.[.\\d]*\\d+)).*"}
+            ]
+          },
           "downstream": {
             "develop": {
               "selectors": [

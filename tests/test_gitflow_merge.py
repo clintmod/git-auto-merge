@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-import argparse
-import logging
 import os
 import sys
 from subprocess import CalledProcessError
@@ -11,17 +9,20 @@ import pytest
 
 import git_auto_merge as gm
 
-gm.ARGS = argparse.Namespace()
-gm.ARGS.use_default_plan = True
-
-LOG = logging.getLogger("git_auto_merge_test")
+gm.CLI_ARGS.should_use_default_plan = True
 
 
 @pytest.fixture(autouse=True)
 def mock_os_makedirs(mocker):
     mocker.patch("os.makedirs")
     mocker.patch("os.chdir")
-    mocker.patch.dict("os.environ", {"GIT_AUTO_MERGE_REPO": "backend"})
+    mocker.patch.dict(
+        "os.environ", {"GIT_AUTO_MERGE_REPO": "git@github.com:clintmod/git_auto_merge_test.git"}
+    )
+
+
+def test_get_repo_name():
+    assert "git_auto_merge_test" == gm.get_repo_name()
 
 
 @patch("argparse.ArgumentParser.parse_args")
@@ -36,23 +37,22 @@ def execute_shell_func(command):
 
 
 def test_configure_logging():
-    gm.ARGS = argparse.Namespace()
-    gm.ARGS.verbose = None
-    gm.configure_logging()
-    assert logging.INFO == logging.getLogger("").level
+    gm.CLI_ARGS.log_level = "INFO"
+    level = gm.configure_logging()
+    assert "INFO" == level
 
 
 def test_configure_logging_verbose():
-    gm.ARGS = argparse.Namespace()
-    gm.ARGS.verbose = 1
-    gm.configure_logging()
-    assert logging.DEBUG == logging.getLogger("").level
+    gm.CLI_ARGS.log_level = "DEBUG"
+    level = gm.configure_logging()
+    assert "DEBUG" == level
 
 
 def test_configure_logging_verbose_with_env():
-    os.environ["DEBUG"] = "1"
-    gm.configure_logging()
-    assert logging.DEBUG == logging.getLogger("").level
+    os.environ["GIT_AUTO_MERGE_LOG_LEVEL"] = "DEBUG"
+    level = gm.configure_logging()
+    assert "DEBUG" == level
+    del os.environ["GIT_AUTO_MERGE_LOG_LEVEL"]
 
 
 @patch("utils.execute_shell")
@@ -64,7 +64,7 @@ def test_main(execute_shell_mock):
 
 def test_merge_item():
     branch_name = "main"
-    merge_item = gm.MergeItem(branch_name)
+    merge_item = gm.MergeItem(group="", branch_name=branch_name)
     assert merge_item.branch_name == "main"
 
 
@@ -108,7 +108,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock):
 
 
 def test_git_push_does_not_push_when_dryrun_is_true():
-    gm.ARGS.dry_run = True
+    gm.CLI_ARGS.dry_run = True
     assert not gm.git_push("asdf")
 
 
@@ -149,6 +149,18 @@ def test_merge_branches_reports_errors(execute_shell_mock):
     assert errors
 
 
+@patch("utils.execute_shell")
+@patch("git_auto_merge.get_branch_list_raw")
+def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock):
+    raw_branches_mock.side_effect = get_branch_list_raw
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    execute_shell_mock.side_effect = raise_merge_error
+    gm.logger.info("Plan: {}", plan)
+    errors = gm.merge_all(plan)
+    assert errors
+
+
 @patch("sys.exit")
 def test_validate_environment(sys_exit_mock):
     del os.environ["GIT_AUTO_MERGE_REPO"]
@@ -157,7 +169,7 @@ def test_validate_environment(sys_exit_mock):
 
 
 @patch("sys.exit")
-@patch("git_auto_merge.LOG.info")
+@patch("git_auto_merge.logger.info")
 def test_handle_errors(log_info_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
@@ -214,6 +226,7 @@ def get_branch_list_raw():
         "      feature/TICKET-1422-staticdb\n"
         "      feature/TICKET-1441\n"
         "      feature/TICKET-922\n"
+        "      bugfix/2.4.0/asdf2\n"
         "      feature/default-staticdb\n"
         "      feature/demo-staticdb\n"
         "      feature/unpin-pylint\n"

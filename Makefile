@@ -1,5 +1,5 @@
 POETRY_VIRTUALENVS_IN_PROJECT = true
-GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod1/git_auto_merge_test
+GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod/git_auto_merge_test.git
 
 export
 
@@ -8,13 +8,15 @@ export
 .PHONY: test-update
 
 BIN = .venv/bin/git-auto-merge
-
-SRC = Makefile .venv pyproject.toml $(shell find src tests -name '*.py')
+VERSION = 1.0.1
+SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
+	  $(shell find src tests -name '*.py') \
+	  $(shell find tests -name '*.txt')
 
 $(BIN): pyproject.toml Makefile .venv
 	poetry install
 
-all: reports format build test lint
+all: reports format build test lint run
 
 reports:
 	mkdir -p reports
@@ -58,7 +60,7 @@ clean-reports:
 docker-build:
 	docker build \
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
-		-t clintmod/git-auto-merge \
+		-t clintmod/git-auto-merge:$(VERSION) \
 	.
 
 docker-build-builder:
@@ -67,6 +69,11 @@ docker-build-builder:
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
 		-t clintmod/git-auto-merge:builder \
 	.
+
+docker-push:
+	docker push clintmod/git-auto-merge:$(VERSION)
+	docker tag clintmod/git-auto-merge:$(VERSION) clintmod/git-auto-merge:latest
+	docker push clintmod/git-auto-merge:latest
 
 docker-shell:
 	docker run \

@@ -21,3 +21,4 @@ main -> release/2.3.0
             develop -> feature/default-staticdb
             develop -> feature/demo-staticdb
             develop -> feature/unpin-pylint
+      release/2.4.0 -> bugfix/2.4.0/asdf2
