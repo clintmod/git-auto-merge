@@ -149,6 +149,18 @@ def test_merge_branches_reports_errors(execute_shell_mock):
     assert errors
 
 
+@patch("utils.execute_shell")
+@patch("git_auto_merge.get_branch_list_raw")
+def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock):
+    raw_branches_mock.side_effect = get_branch_list_raw
+    config = gm.load_config()
+    plan = gm.build_plan(config)
+    execute_shell_mock.side_effect = raise_merge_error
+    gm.logger.info("Plan: {}", plan)
+    errors = gm.merge_all(plan)
+    assert errors
+
+
 @patch("sys.exit")
 def test_validate_environment(sys_exit_mock):
     del os.environ["GIT_AUTO_MERGE_REPO"]

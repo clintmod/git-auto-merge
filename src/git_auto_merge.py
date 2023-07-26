@@ -118,7 +118,7 @@ class MergeProblem:
 
 def configure_logging():
     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss,SSS}</green> <level>{level: <8}</level>"
-    log_format += "<cyan>src/{file}:{line}</cyan> - <cyan>{function}</cyan>() : "
+    log_format += "<cyan>src/{file}:{line}</cyan> : "
     log_format += "<level>{message}</level>"
     logger.remove()
     level = CLI_ARGS.log_level if CLI_ARGS.log_level else "INFO"
@@ -229,13 +229,13 @@ def git_push(branch):
     return True
 
 
-def merge_all(merge_item: MergeItem, errors=None):
-    errors = errors or []
+def merge_all(merge_item: MergeItem):
+    errors = []
     assert merge_item is not None
     if merge_item.upstream is not None:
         errors += merge_branches(merge_item.upstream.branch_name, merge_item.branch_name)
     for downstream in merge_item.downstream:
-        merge_all(downstream, errors)
+        errors += merge_all(downstream)
     return errors
 
 
