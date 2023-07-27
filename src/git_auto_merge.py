@@ -304,10 +304,12 @@ def load_env():
         CLI_ARGS.log_level = os.environ["GIT_AUTO_MERGE_LOG_LEVEL"]
 
 
-def load_config():
+def load_config(path=None):
     config = {}
     config_file_in_repo_path = f"{get_repo_path()}/{GIT_AUTO_MERGE_JSON}"
-    if os.path.exists(GIT_AUTO_MERGE_JSON) and CLI_ARGS.should_use_default_plan:
+    if path:
+        config = load_config_from_path(path)
+    elif os.path.exists(GIT_AUTO_MERGE_JSON) and CLI_ARGS.should_use_default_plan:
         config = load_config_from_path(GIT_AUTO_MERGE_JSON)
     elif os.path.exists(config_file_in_repo_path):
         config = load_config_from_path(config_file_in_repo_path)

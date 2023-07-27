@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "repo_path": "repos",
+  "plan": {
+    "root": {
+      "selectors": [
+        {"name": "production"}
+      ],
+      "downstream": {
+        "release-bank": {
+          "sort": "version",
+          "selectors": [
+            {"regex": "^hotfix/bank/.*(?:(\\d+\\.[.\\d]*\\d+)).*"},
+            {"regex": "^release/bank/.*(?:(\\d+\\.[.\\d]*\\d+)).*"}
+          ],
+          "downstreamForEach": {
+            "matchOn":"version",
+            "matchedSelectors": [
+              {"regex": "^bugfix/bank/(?:(\\d+\\.[.\\d]*\\d+)).*"}
+            ]
+          },
+          "downstream": {
+            "develop": {
+              "selectors": [
+                {"name": "main"}
+              ],
+              "downstream": {
+                "feature": {
+                  "selectors": [
+                    {"regex": "^feature/.*"}
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "release-auto": {
+          "sort": "version",
+          "selectors": [
+            {"regex": "^hotfix/auto/.*(?:(\\d+\\.[.\\d]*\\d+)).*"},
+            {"regex": "^release/auto/.*(?:(\\d+\\.[.\\d]*\\d+)).*"}
+          ],
+          "downstreamForEach": {
+            "matchOn":"version",
+            "matchedSelectors": [
+              {"regex": "^bugfix/auto/(?:(\\d+\\.[.\\d]*\\d+)).*"}
+            ]
+          },
+          "downstream": {
+            "develop": {
+              "selectors": [
+                {"name": "main"}
+              ],
+              "downstream": {
+                "feature": {
+                  "selectors": [
+                    {"regex": "^feature/.*"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -206,6 +206,14 @@ def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot
     snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_for_main_and_develop.txt")
 
 
+@patch("git_auto_merge.get_branch_list_raw")
+def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot):
+    raw_branches_mock.side_effect = multi_project_branch_list_raw
+    config = gm.load_config('tests/multi-project-config.json')
+    plan = gm.build_plan(config)
+    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
+
+
 def get_branch_list_raw():
     return (
         "      as/TICKET-1087\n"
@@ -249,4 +257,45 @@ def get_branch_list_raw():
         "      hotfix/2.4.2\n"
         "      release/prefix-1000.1000.1000-codename\n"
         "      test/20210210-staticdb\n"
+    )
+
+def multi_project_branch_list_raw():
+    return (
+        "      production\n"
+        "      feature/DOK-126\n"
+        "      feature/DOK-545-staticdb\n"
+        "      feature/TICKET-1087\n"
+        "      feature/TICKET-1087-staticdb\n"
+        "      feature/TICKET-1128\n"
+        "      feature/TICKET-1224\n"
+        "      feature/TICKET-1224-cleanup\n"
+        "      feature/TICKET-1331\n"
+        "      feature/TICKET-1368\n"
+        "      feature/TICKET-1397-staticdb\n"
+        "      feature/TICKET-1422-staticdb\n"
+        "      feature/TICKET-1441\n"
+        "      feature/TICKET-922\n"
+        "      bugfix/bank/2.4.0/asdf2\n"
+        "      feature/default-staticdb\n"
+        "      feature/demo-staticdb\n"
+        "      feature/unpin-pylint\n"
+        "      hotfix/TICKET-1162-staticdb\n"
+        "      hotfix/TICKET-1411\n"
+        "      hotfix/TICKET-1411-income-widget-remove-pending-transactions\n"
+        "      hotfix/TICKET-1441\n"
+        "      hotfix/TICKET-1456\n"
+        "      hotfix/TICKET-916\n"
+        "      hotfix/TICKET-916-followup\n"
+        "      hotfix/sponsored-offers-optimizations\n"
+        "      hotfix/sponsored-offers-optimizations-2\n"
+        "      main\n"
+        "      staging\n"
+        "      release/bank/2.3.0\n"
+        "      release/bank/2.4.0\n"
+        "      hotfix/bank/2.3.1-codename\n"
+        "      hotfix/bank/2.4.2\n"
+        "      release/auto/2.2.0\n"
+        "      release/auto/2.1.0\n"
+        "      hotfix/auto/2.1.1-codename\n"
+        "      hotfix/auto/2.2.2\n"
     )
