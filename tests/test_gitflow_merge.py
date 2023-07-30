@@ -131,21 +131,20 @@ def test_merge_branches_does_not_push_when_up_to_date(execute_shell_mock):
 
 
 def test_merge_problem():
-    err = Exception("test error")
-    mp1 = gm.MergeProblem("merge_from", "merge_to", err)
+    err = CalledProcessError(returncode=1, cmd="asdf", output="test error")
+    mp1 = gm.MergeError(merge_from="merge_from", merge_to="merge_to", error=err)
     assert str(mp1)
 
 
 def raise_merge_error(command):
     if "git merge" in command:
-        raise CalledProcessError(0, command)
-    return "asdf\nasdf"
+        raise CalledProcessError(0, command, output="asdf\nasdf")
 
 
 @patch("utils.execute_shell")
 def test_merge_branches_reports_errors(execute_shell_mock):
     execute_shell_mock.side_effect = raise_merge_error
-    errors = gm.merge_branches("from", "to")
+    errors = gm.merge_branches(merge_from="from", merge_to="to")
     assert errors
 
 
@@ -157,7 +156,7 @@ def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock):
     plan = gm.build_plan(config)
     execute_shell_mock.side_effect = raise_merge_error
     gm.logger.info("Plan: {}", plan)
-    errors = gm.merge_all(plan)
+    errors = gm.merge_all(merge_item=plan)
     assert errors
 
 
@@ -169,12 +168,12 @@ def test_validate_environment(sys_exit_mock):
 
 
 @patch("sys.exit")
-@patch("git_auto_merge.logger.info")
-def test_handle_errors(log_info_mock, sys_exit_mock):
+@patch("git_auto_merge.logger.error")
+def test_handle_errors(log_err_mock, sys_exit_mock):
     err1 = Exception("test error1")
-    mp1 = gm.MergeProblem("merge_from1", "merge_to1", err1)
+    mp1 = gm.MergeError(merge_from="merge_from", merge_to="merge_to", error=err1)
     gm.handle_errors([mp1])
-    log_info_mock.assert_called_with(mp1)
+    log_err_mock.assert_called_with(mp1)
     sys_exit_mock.assert_called()
 
 
@@ -209,7 +208,7 @@ def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot
 @patch("git_auto_merge.get_branch_list_raw")
 def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot):
     raw_branches_mock.side_effect = multi_project_branch_list_raw
-    config = gm.load_config('tests/multi-project-config.json')
+    config = gm.load_config("tests/multi-project-config.json")
     plan = gm.build_plan(config)
     snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
 
@@ -258,6 +257,7 @@ def get_branch_list_raw():
         "      release/prefix-1000.1000.1000-codename\n"
         "      test/20210210-staticdb\n"
     )
+
 
 def multi_project_branch_list_raw():
     return (
