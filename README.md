@@ -5,7 +5,12 @@ A tool to automatically merge git branches.
 # Features
 
 - Automatically merge branches in a git repo
-- 
+- Based a config file checked in to the target repo
+- Captures emails when a conflict is detected
+- Generates a json report of problems
+- Prints a plan
+- Can be executed in dry run mode (doesn't push changes)
+- Supports monorepo
 
 # Installation
 
