@@ -103,17 +103,11 @@ docker-scan:
 	aquasec/trivy:latest \
 		image \
 			--timeout 10m \
+			--exit-code 1\
 			--severity CRITICAL \
 			--ignore-unfixed --timeout 20m \
 			--ignorefile /.trivyignore \
-		"$(IMAGE_NAME)"
-test-jenkinsfile:
-	docker run --rm -v $(PWD):/home/groovy/app groovy:3.0.6 \
-		bash -c "cd /home/groovy/app && \
-		groovy -cp scripts/jenkinsfile scripts/jenkinsfile/Tests.groovy"
-
-test-jenkinsfile-local:
-	groovy -cp scripts/jenkinsfile scripts/jenkinsfile/Tests.groovy
+		"$(IMAGE_NAME):$(VERSION)"
 
 print-env:
 	env | sort

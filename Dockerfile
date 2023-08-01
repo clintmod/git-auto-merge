@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     bash \
     curl \
     git \
-    openssh \
+    openssh=9.1_p1-r4 \
     tzdata \
     && rm -rf /var/cache/apk/*
 
