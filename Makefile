@@ -57,6 +57,13 @@ lint: reports/lint.ansi
 clean-reports:
 	rm -rf reports/*
 
+tag:
+	git tag v$(VERSION)
+
+git-push:
+	git push --tags
+	git push
+
 docker-build:
 	docker build \
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
