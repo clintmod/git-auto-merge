@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from subprocess import CalledProcessError
 from typing import Optional, Self
 
+import jsonpickle
 from loguru import logger
 from packaging.version import Version
 
@@ -95,24 +96,36 @@ class VersionedBranch:
         return Version(self.version) < Version(item.version)
 
 
-class MergeProblem:
+class MergeError:
     merge_from = ""
     merge_to = ""
-    error = None
+    error: CalledProcessError | None = None
+    conflict = False
+    emails = []
 
-    def __init__(self, merge_from, merge_to, error):
+    def __init__(self, merge_from, merge_to, error, conflict=False, emails=None):
         self.merge_from = merge_from
         self.merge_to = merge_to
         self.error = error
+        self.conflict = conflict
+        self.emails = emails or []
+
+    def __json__(self):
+        return_val = {}
+        return_val["merge_from"] = self.merge_from
+        return_val["merge_to"] = self.merge_to
+        if self.error:
+            return_val["error"] = self.error.output
+        return_val["conflict"] = self.conflict
+        return_val["emails"] = self.emails
+        return return_val
 
     def __str__(self):
-        return self.to_string()
-
-    def to_string(self):
         return_val = "An error occurred merging"
-        return_val += " from {} to {}."
-        return_val += " The error message was: {}"
-        return_val = return_val.format(self.merge_from, self.merge_to, self.error)
+        return_val += f" from {self.merge_from} to {self.merge_to}."
+        if self.error:
+            return_val += f"\nThe error message was: {self.error.output}"
+        return_val += f"\nThe following emails were found via the diff: {self.emails}"
         return return_val
 
 
@@ -229,7 +242,7 @@ def git_push(branch):
     return True
 
 
-def merge_all(merge_item: MergeItem):
+def merge_all(merge_item: MergeItem) -> list[MergeError]:
     errors = []
     assert merge_item is not None
     if merge_item.upstream is not None:
@@ -239,7 +252,7 @@ def merge_all(merge_item: MergeItem):
     return errors
 
 
-def merge_branches(merge_from, merge_to):
+def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
     errors = []
     logger.info("Merging from {} to {}", merge_from, merge_to)
     command = "git reset --hard HEAD"
@@ -250,12 +263,17 @@ def merge_branches(merge_from, merge_to):
     try:
         message = utils.execute_shell(f"git merge origin/{merge_from}")
     except CalledProcessError as err:
-        logger.info(
-            "Merging failed from {} to {}",
-            merge_from,
-            merge_to,
+        logger.error(
+            f"Merging failed from {merge_from} to {merge_to} with error: {err.output}",
         )
-        errors.append(MergeProblem(merge_from, merge_to, err))
+        merge_error = MergeError(merge_from, merge_to, err)
+        if "conflict" in err.output:
+            logger.info("Merge conflict detected")
+            merge_error.conflict = True
+            command = f"git log {merge_to}..{merge_from}"
+            command += " --no-merges --pretty=format:'%ae' | sort | uniq"
+            merge_error.emails = utils.execute_shell(command).split("\n")
+        errors.append(merge_error)
     else:
         if "Already up to date" not in message:
             git_push(merge_to)
@@ -275,18 +293,24 @@ def validate_environment():
         sys.exit(1)
 
 
-def handle_errors(merge_errors):
+def handle_errors(merge_errors: list[MergeError]):
     if not merge_errors:
         return
-    logger.info("Printing error report and writing it to ./reports:")
-    if os.path.exists("reports/errors.txt"):
-        os.remove("reports/errors.txt")
-    if not os.path.exists("reports"):
-        os.mkdir("reports")
-    with open("reports/errors.txt", "w", encoding="utf-8") as file:
-        for merge_error in merge_errors:
-            logger.info(merge_error)
-            file.write(str(merge_error) + "\n")
+    reports_dir = "reports"
+    reports_path = os.path.join(reports_dir, "errors.json")
+    if os.path.exists(reports_path):
+        os.remove(reports_path)
+    assert not os.path.exists(reports_path)
+    if not os.path.exists(reports_dir):
+        os.mkdir(reports_dir)
+    logger.info("Logging error report")
+    for merge_error in merge_errors:
+        logger.error(merge_error)
+    logger.info(f"Writing error report to {reports_path}")
+    with open(reports_path, "w", encoding="utf-8") as file:
+        result = str(jsonpickle.encode(merge_errors, unpicklable=False, indent=2))
+        file.write(result)
+        logger.info("Error report written to {}", reports_path)
     sys.exit(1)
 
 
@@ -460,6 +484,7 @@ def build_plan(config) -> MergeItem:
 
 
 def main():
+    cur_dir = os.getcwd()
     args = parse_args()
     print("args = ", args)
     global CLI_ARGS
@@ -471,7 +496,6 @@ def main():
     config = load_config()
     plan = build_plan(config)
     logger.info("Plan: {}", plan)
-    cur_dir = os.curdir
     os.chdir(f"{get_repo_path()}")
     errors = merge_all(plan)
     os.chdir(cur_dir)

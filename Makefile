@@ -1,6 +1,6 @@
 POETRY_VIRTUALENVS_IN_PROJECT = true
 GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod/git_auto_merge_test.git
-
+IMAGE_NAME ?= clintmod/git-auto-merge
 export
 
 .DEFAULT_GOAL := all
@@ -8,7 +8,7 @@ export
 .PHONY: test-update
 
 BIN = .venv/bin/git-auto-merge
-VERSION = 1.1.0
+VERSION = $(shell yq .tool.poetry.version pyproject.toml)
 SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
 	  $(shell find src tests -name '*.py') \
 	  $(shell find tests -name '*.txt')
@@ -60,38 +60,53 @@ clean-reports:
 docker-build:
 	docker build \
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
-		-t clintmod/git-auto-merge:$(VERSION) \
+		-t $(IMAGE_NAME):$(VERSION) \
 	.
 
 docker-build-builder:
 	docker build \
 		--target=builder \
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \
-		-t clintmod/git-auto-merge:builder \
+		-t $(IMAGE_NAME):builder \
 	.
 
 docker-push:
-	docker push clintmod/git-auto-merge:$(VERSION)
-	docker tag clintmod/git-auto-merge:$(VERSION) clintmod/git-auto-merge:latest
-	docker push clintmod/git-auto-merge:latest
+	docker push $(IMAGE_NAME):$(VERSION)
+	docker tag $(IMAGE_NAME):$(VERSION) $(IMAGE_NAME):latest
+	docker push $(IMAGE_NAME):latest
 
 docker-shell:
 	docker run \
 		-it --rm --entrypoint= \
-		-e GIT_AUTO_MERGE_REPO=git@github.com:clintmod/git_auto_merge_test \
+		-e GIT_AUTO_MERGE_REPO=$(GIT_AUTO_MERGE_REPO) \
 		-e DEBUG=1 \
 		-v $(HOME)/.ssh:/home/app/.ssh \
-	clintmod/git-auto-merge \
+	$(IMAGE_NAME) \
 	bash
 
 docker-run:
 	docker run \
 		-it --rm \
-		-e GIT_AUTO_MERGE_REPO=git@github.com:clintmod/git_auto_merge_test \
+		-e GIT_AUTO_MERGE_REPO=$(GIT_AUTO_MERGE_REPO) \
 		-e DEBUG=1 \
 		-v $(HOME)/.ssh:/home/app/.ssh \
-	clintmod/git-auto-merge
+	$(IMAGE_NAME)
 
+docker-scan:
+	@echo
+	@echo "Scanning docker image $(IMAGE_NAME) for vulnerabilities with Trivy"
+	@echo
+	docker run --rm \
+		-v /var/run/docker.sock:/var/run/docker.sock \
+    	-v "$(HOME)/trivy/.cache:/root/.cache/" \
+		-v "$(PWD)/.trivyignore:/.trivyignore" \
+	aquasec/trivy:latest \
+		image \
+			--timeout 10m \
+			--severity CRITICAL \
+			--ignore-unfixed --timeout 20m \
+			--ignorefile /.trivyignore \
+		"$(IMAGE_NAME)"
 test-jenkinsfile:
 	docker run --rm -v $(PWD):/home/groovy/app groovy:3.0.6 \
 		bash -c "cd /home/groovy/app && \
@@ -99,3 +114,6 @@ test-jenkinsfile:
 
 test-jenkinsfile-local:
 	groovy -cp scripts/jenkinsfile scripts/jenkinsfile/Tests.groovy
+
+print-env:
+	env | sort
