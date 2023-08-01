@@ -43,6 +43,11 @@ test: reports/test.ansi
 test-update:
 	EXTRA_TEST_ARGS="--snapshot-update" make test
 
+reports/safety.ansi: pyproject.toml
+	scripts/safety.sh
+
+safety: reports/safety.ansi
+
 dry-run:
 	poetry run $(BIN) --dry-run
 
