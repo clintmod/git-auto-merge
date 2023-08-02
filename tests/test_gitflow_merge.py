@@ -1,34 +1,36 @@
 #!/usr/bin/env python
 
-import os
 import sys
 from subprocess import CalledProcessError
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
+import click
 import pytest
 
 import git_auto_merge as gm
-
-gm.CLI_ARGS.should_use_default_plan = True
 
 
 @pytest.fixture(autouse=True)
 def mock_os_makedirs(mocker):
     mocker.patch("os.makedirs")
     mocker.patch("os.chdir")
-    mocker.patch.dict(
-        "os.environ", {"GIT_AUTO_MERGE_REPO": "git@github.com:clintmod/git_auto_merge_test.git"}
-    )
 
 
-def test_get_repo_name():
-    assert "git_auto_merge_test" == gm.get_repo_name()
+@pytest.fixture(autouse=True, name="click_context")
+def create_click_context():
+    click_context = click.Context(click.Command("git-auto-merge"))
+    click_context.params = {
+        "dry_run": False,
+        "log_level": "INFO",
+        "should_use_default_plan": True,
+        "repo": "git@github.com:clintmod/git_auto_merge_test.git",
+    }
+    return click_context
 
 
-@patch("argparse.ArgumentParser.parse_args")
-def test_parse_args(parse_args_mock):
-    parse_args_mock.return_value.verbose = 1
-    gm.parse_args()
+def test_get_repo_name(click_context):
+    with click_context:
+        assert "git_auto_merge_test" == gm.get_repo_name()
 
 
 def execute_shell_func(command):
@@ -36,30 +38,22 @@ def execute_shell_func(command):
     return "hotfix/1.0.1\nhotfix/1.0.2\nrelease/2.3.0"
 
 
-def test_configure_logging():
-    gm.CLI_ARGS.log_level = "INFO"
-    level = gm.configure_logging()
-    assert "INFO" == level
+@patch("git_auto_merge.log.add")
+def test_configure_logging(add_logger_mock, click_context):
+    with click_context:
+        level = "ERROR"
+        click_context.params["log_level"] = level
+        gm.configure_logging()
+        add_logger_mock.assert_called_with(sink=sys.stderr, format=ANY, level=level)
 
 
-def test_configure_logging_verbose():
-    gm.CLI_ARGS.log_level = "DEBUG"
-    level = gm.configure_logging()
-    assert "DEBUG" == level
-
-
-def test_configure_logging_verbose_with_env():
-    os.environ["GIT_AUTO_MERGE_LOG_LEVEL"] = "DEBUG"
-    level = gm.configure_logging()
-    assert "DEBUG" == level
-    del os.environ["GIT_AUTO_MERGE_LOG_LEVEL"]
-
-
-@patch("utils.execute_shell")
-def test_main(execute_shell_mock):
-    sys.argv = ["-d", "-u"]
-    gm.main()
-    execute_shell_mock.assert_called()
+@patch("git_auto_merge.log.add")
+def test_configure_logging_verbose(add_logger_mock, click_context):
+    with click_context:
+        level = "VERBOSE"
+        click_context.params["log_level"] = level
+        gm.configure_logging()
+        add_logger_mock.assert_called_with(sink=sys.stderr, format=ANY, level=level)
 
 
 def test_merge_item():
@@ -98,36 +92,42 @@ def test_sorting_versioned_branches_works():
 
 @patch("utils.execute_shell")
 @patch("git_auto_merge.get_branch_list_raw")
-def test_merge_all(raw_branches_mock, execute_shell_mock):
-    raw_branches_mock.return_value = "  develop\n" + "  main\n"
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    errors = gm.merge_all(plan)
-    assert not errors
-    execute_shell_mock.assert_called()
+def test_merge_all(raw_branches_mock, execute_shell_mock, click_context):
+    with click_context:
+        raw_branches_mock.return_value = "  develop\n" + "  main\n"
+        config = gm.load_config()
+        plan = gm.build_plan(config)
+        errors = gm.merge_all(plan)
+        assert not errors
+        execute_shell_mock.assert_called()
 
 
 def test_git_push_does_not_push_when_dryrun_is_true():
-    gm.CLI_ARGS.dry_run = True
-    assert not gm.git_push("asdf")
+    context = click.Context(click.Command("git-auto-merge"))
+    context.params = {"dry_run": True}
+    with context:
+        assert not gm.git_push("asdf")
 
 
 @patch("utils.execute_shell")
-def test_clone(execute_shell_mock):
-    gm.clone()
-    execute_shell_mock.assert_called()
+def test_clone(execute_shell_mock, click_context):
+    with click_context:
+        gm.clone()
+        execute_shell_mock.assert_called()
 
 
 @patch("utils.execute_shell")
-def test_merge_branches(execute_shell_mock):
-    gm.merge_branches("asdf", "asdf")
-    execute_shell_mock.assert_called()
+def test_merge_branches(execute_shell_mock, click_context):
+    with click_context:
+        gm.merge_branches("asdf", "asdf")
+        execute_shell_mock.assert_called()
 
 
 @patch("utils.execute_shell")
-def test_merge_branches_does_not_push_when_up_to_date(execute_shell_mock):
-    execute_shell_mock.return_value = "Already up to date"
-    gm.merge_branches("asdf", "asdf")
+def test_merge_branches_does_not_push_when_up_to_date(execute_shell_mock, click_context):
+    with click_context:
+        execute_shell_mock.return_value = "Already up to date"
+        gm.merge_branches("asdf", "asdf")
 
 
 def test_merge_problem():
@@ -150,25 +150,19 @@ def test_merge_branches_reports_errors(execute_shell_mock):
 
 @patch("utils.execute_shell")
 @patch("git_auto_merge.get_branch_list_raw")
-def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock):
-    raw_branches_mock.side_effect = get_branch_list_raw
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    execute_shell_mock.side_effect = raise_merge_error
-    gm.logger.info("Plan: {}", plan)
-    errors = gm.merge_all(merge_item=plan)
-    assert errors
+def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock, click_context):
+    with click_context:
+        raw_branches_mock.side_effect = get_branch_list_raw
+        config = gm.load_config()
+        plan = gm.build_plan(config)
+        execute_shell_mock.side_effect = raise_merge_error
+        gm.log.info("Plan: {}", plan)
+        errors = gm.merge_all(merge_item=plan)
+        assert errors
 
 
 @patch("sys.exit")
-def test_validate_environment(sys_exit_mock):
-    del os.environ["GIT_AUTO_MERGE_REPO"]
-    gm.validate_environment()
-    sys_exit_mock.assert_called_with(1)
-
-
-@patch("sys.exit")
-@patch("git_auto_merge.logger.error")
+@patch("git_auto_merge.log.error")
 def test_handle_errors(log_err_mock, sys_exit_mock):
     err1 = Exception("test error1")
     mp1 = gm.MergeError(merge_from="merge_from", merge_to="merge_to", error=err1)
@@ -177,40 +171,45 @@ def test_handle_errors(log_err_mock, sys_exit_mock):
     sys_exit_mock.assert_called()
 
 
-def test_load_config():
-    gm.load_config()
+def test_load_config(click_context):
+    with click_context:
+        gm.load_config()
 
 
 @patch("git_auto_merge.get_branch_list_raw")
-def test_build_plan(raw_branches_mock, snapshot):
-    raw_branches_mock.side_effect = get_branch_list_raw
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan.txt")
+def test_build_plan(raw_branches_mock, snapshot, click_context):
+    with click_context:
+        raw_branches_mock.side_effect = get_branch_list_raw
+        config = gm.load_config()
+        plan = gm.build_plan(config)
+        snapshot.assert_match(f"{str(plan)}\n", "test_build_plan.txt")
 
 
 @patch("git_auto_merge.get_branch_list_raw")
-def test_build_plan_works_when_only_main(raw_branches_mock, snapshot):
-    raw_branches_mock.return_value = "      main\n"
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_only_main.txt")
+def test_build_plan_works_when_only_main(raw_branches_mock, snapshot, click_context):
+    with click_context:
+        raw_branches_mock.return_value = "      main\n"
+        config = gm.load_config()
+        plan = gm.build_plan(config)
+        snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_only_main.txt")
 
 
 @patch("git_auto_merge.get_branch_list_raw")
-def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot):
-    raw_branches_mock.return_value = "  develop\n" + "  main\n"
-    config = gm.load_config()
-    plan = gm.build_plan(config)
-    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_for_main_and_develop.txt")
+def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot, click_context):
+    with click_context:
+        raw_branches_mock.return_value = "  develop\n" + "  main\n"
+        config = gm.load_config()
+        plan = gm.build_plan(config)
+        snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_for_main_and_develop.txt")
 
 
 @patch("git_auto_merge.get_branch_list_raw")
-def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot):
-    raw_branches_mock.side_effect = multi_project_branch_list_raw
-    config = gm.load_config("tests/multi-project-config.json")
-    plan = gm.build_plan(config)
-    snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
+def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot, click_context):
+    with click_context:
+        raw_branches_mock.side_effect = multi_project_branch_list_raw
+        config = gm.load_config("tests/multi-project-config.json")
+        plan = gm.build_plan(config)
+        snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
 
 
 def get_branch_list_raw():

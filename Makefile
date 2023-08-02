@@ -30,6 +30,7 @@ build: $(BIN)
 
 reports/test.ansi: $(SRC)
 	unbuffer poetry run pytest -vvv \
+		--tb=long \
 		--ignore repos \
 		--ignore .venv \
 		--cov=src \
