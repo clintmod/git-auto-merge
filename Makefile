@@ -5,7 +5,7 @@ export
 
 .DEFAULT_GOAL := all
 
-.PHONY: test-update
+.PHONY: test-unit-update
 
 BIN = .venv/bin/git-auto-merge
 VERSION = $(shell yq .tool.poetry.version pyproject.toml)
@@ -16,7 +16,7 @@ SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
 $(BIN): pyproject.toml Makefile .venv
 	poetry install
 
-all: reports format build test lint run
+all: reports format build test-unit lint run
 
 reports:
 	mkdir -p reports
@@ -28,7 +28,7 @@ format: reports/format.ansi
 
 build: $(BIN)
 
-reports/test.ansi: $(SRC)
+reports/test-unit.ansi: $(SRC)
 	unbuffer poetry run pytest -vvv \
 		--tb=long \
 		--ignore repos \
@@ -36,13 +36,13 @@ reports/test.ansi: $(SRC)
 		--cov=src \
 		--cov-report term-missing:skip-covered \
 		$(EXTRA_TEST_ARGS) \
-	tests \
-	| tee -i reports/test.ansi
+	tests/unit \
+	| tee -i reports/test-unit.ansi
 
-test: reports/test.ansi
+test-unit: reports/test-unit.ansi
 	
-test-update:
-	EXTRA_TEST_ARGS="--snapshot-update" make test
+test-unit-update:
+	EXTRA_TEST_ARGS="--snapshot-update" make test-unit
 
 reports/safety.ansi: pyproject.toml
 	scripts/safety.sh

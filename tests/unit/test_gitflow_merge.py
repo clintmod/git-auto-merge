@@ -207,7 +207,7 @@ def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot
 def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot, click_context):
     with click_context:
         raw_branches_mock.side_effect = multi_project_branch_list_raw
-        config = gm.load_config("tests/multi-project-config.json")
+        config = gm.load_config("tests/unit/multi-project-config.json")
         plan = gm.build_plan(config)
         snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
 
