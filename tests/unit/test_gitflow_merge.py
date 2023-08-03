@@ -106,7 +106,7 @@ def test_git_push_does_not_push_when_dryrun_is_true():
     context = click.Context(click.Command("git-auto-merge"))
     context.params = {"dry_run": True}
     with context:
-        assert not gm.git_push("asdf")
+        assert not gm.git_push("asdf", "asdf")
 
 
 @patch("utils.execute_shell")

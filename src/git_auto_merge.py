@@ -201,12 +201,15 @@ def clone():
 
 
 @click.pass_context
-def git_push(click_context, branch):
+def git_push(click_context, branch, merge_output):
     dry_run = click_context.params.get("dry_run")
     if dry_run:
         log.info(f"dry run: skipping push for {branch}")
         return False
-    utils.execute_shell(f"git push origin {branch}")
+    if "Already up to date" not in merge_output:
+        utils.execute_shell(f"git push origin {branch}")
+    else:
+        log.info("Nothing to do: {}", merge_output)
     return True
 
 
@@ -229,7 +232,7 @@ def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
     command += " && git submodule update --init --recursive"
     utils.execute_shell(command)
     try:
-        message = utils.execute_shell(f"git merge origin/{merge_from}")
+        merge_output = utils.execute_shell(f"git merge origin/{merge_from}")
     except CalledProcessError as err:
         log.error(
             f"Merging failed from {merge_from} to {merge_to} with error: {err.output}",
@@ -243,10 +246,7 @@ def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
             merge_error.emails = utils.execute_shell(command).split("\n")
         errors.append(merge_error)
     else:
-        if "Already up to date" not in message:
-            git_push(merge_to)
-        else:
-            log.info("Nothing to do: {}", message)
+        git_push(merge_to, merge_output)
     return errors
 
 
@@ -440,7 +440,10 @@ def build_plan(config) -> MergeItem:
     return plan
 
 
-@click.command(context_settings={"auto_envvar_prefix": "GIT_AUTO_MERGE"})
+@click.command(
+    context_settings={"auto_envvar_prefix": "GIT_AUTO_MERGE"},
+    epilog="Check out the docs at https://github.com/clintmod/git-auto-merge for more details",
+)
 @click.option(
     "-r",
     "--repo",
@@ -459,8 +462,17 @@ def build_plan(config) -> MergeItem:
     default=False,
     help="Use the default plan from the .git-auto-merge.json config file in this repo",
 )
-@click.option("-d", "--dry-run", default=False, help="This mode will do everything except git push")
+@click.option(
+    "-d",
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="This mode will do everything except git push",
+)
 def cli(**args):
+    """
+    A tool to automatically merge git branches.
+    """
     cur_dir = os.getcwd()
     load_env()
     configure_logging()
@@ -473,3 +485,4 @@ def cli(**args):
     errors = merge_all(plan)
     os.chdir(cur_dir)
     handle_errors(errors)
+    log.info("Merge complete")

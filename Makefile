@@ -16,7 +16,9 @@ SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
 $(BIN): pyproject.toml Makefile .venv
 	poetry install
 
-all: reports format build test-unit lint run
+all: reports format build test-unit lint test-integration
+
+dev: reports format build test-unit lint
 
 reports:
 	mkdir -p reports
@@ -31,8 +33,6 @@ build: $(BIN)
 reports/test-unit.ansi: $(SRC)
 	unbuffer poetry run pytest -vvv \
 		--tb=long \
-		--ignore repos \
-		--ignore .venv \
 		--cov=src \
 		--cov-report term-missing:skip-covered \
 		$(EXTRA_TEST_ARGS) \
@@ -43,6 +43,15 @@ test-unit: reports/test-unit.ansi
 	
 test-unit-update:
 	EXTRA_TEST_ARGS="--snapshot-update" make test-unit
+
+reports/test-integration.ansi: $(SRC)
+	unbuffer poetry run pytest -vvv \
+		--tb=long \
+		$(EXTRA_TEST_ARGS) \
+	tests/integration \
+	| tee -i reports/test-integration.ansi
+
+test-integration: reports/test-integration.ansi
 
 reports/safety.ansi: pyproject.toml
 	scripts/safety.sh
