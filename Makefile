@@ -85,6 +85,15 @@ docker-build:
 		-t $(IMAGE_NAME):$(VERSION) \
 	.
 
+docker-test:
+	docker run \
+		-it --rm \
+		-e GIT_AUTO_MERGE_REPO=https://github.com/clintmod/git_auto_merge_test.git \
+		-e DEBUG=1 \
+		-v $(HOME)/.ssh:/home/app/.ssh \
+	$(IMAGE_NAME):$(VERSION) \
+		--dry-run
+
 docker-build-builder:
 	docker build \
 		--target=builder \
@@ -103,7 +112,7 @@ docker-shell:
 		-e GIT_AUTO_MERGE_REPO=$(GIT_AUTO_MERGE_REPO) \
 		-e DEBUG=1 \
 		-v $(HOME)/.ssh:/home/app/.ssh \
-	$(IMAGE_NAME) \
+	$(IMAGE_NAME):$(VERSION) \
 	bash
 
 docker-run:
@@ -112,7 +121,7 @@ docker-run:
 		-e GIT_AUTO_MERGE_REPO=$(GIT_AUTO_MERGE_REPO) \
 		-e DEBUG=1 \
 		-v $(HOME)/.ssh:/home/app/.ssh \
-	$(IMAGE_NAME)
+	$(IMAGE_NAME):$(VERSION)
 
 docker-scan:
 	@echo
