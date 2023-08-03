@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-import argparse
 import json
 import os
 import re
 import sys
-from dataclasses import dataclass
 from subprocess import CalledProcessError
 from typing import Optional, Self
 
+import click
 import jsonpickle
-from loguru import logger
+from loguru import logger as log
 from packaging.version import Version
 
 import utils
@@ -21,21 +20,6 @@ GIT_AUTO_MERGE_REPO_BASE_DIR = "repos"
 
 # pylint: disable=anomalous-backslash-in-string
 SEMVER_PATTERN = r"(\d+\.\d+\.\d+)"
-
-
-@dataclass
-class CliArgs:
-    log_level = "INFO"
-    should_use_default_plan = False
-    dry_run = False
-
-    def __init__(self, log_level=None, should_use_default_plan=False, dry_run=False):
-        self.log_level = log_level
-        self.should_use_default_plan = should_use_default_plan
-        self.dry_run = dry_run
-
-
-CLI_ARGS: CliArgs = CliArgs()
 
 
 class MergeItem:
@@ -129,13 +113,15 @@ class MergeError:
         return return_val
 
 
-def configure_logging():
+@click.pass_context
+def configure_logging(click_context):
+    log_level = click_context.params.get("log_level")
     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss,SSS}</green> <level>{level: <8}</level>"
     log_format += "<cyan>src/{file}:{line}</cyan> : "
     log_format += "<level>{message}</level>"
-    logger.remove()
-    level = CLI_ARGS.log_level if CLI_ARGS.log_level else "INFO"
-    logger.add(sys.stderr, format=log_format, level=level)
+    log.remove()
+    level = log_level if log_level else "INFO"
+    log.add(sink=sys.stderr, format=log_format, level=level)
     return level
 
 
@@ -160,36 +146,16 @@ def get_branch_list():
     branches = branches_raw.split("\n")
     while "" in branches:
         branches.remove("")
-    logger.debug("split branches = {}", branches)
+    log.debug("split branches = {}", branches)
     branches = [branch.strip() for branch in branches]
     os.chdir(orig_dir)
     return branches
 
 
-def parse_args() -> dict:
-    parser = argparse.ArgumentParser(
-        prog="git-auto-merge", description="Merge git flow branches down"
-    )
-    parser.add_argument(
-        "--log-level", "-v", action="count", help="logger everything to the console"
-    )
-    parser.add_argument(
-        "--should-use-default-plan",
-        "-u",
-        action="store_true",
-        help="Use the default plan from the .git-auto-merge.json config file in this repo",
-    )
-    parser.add_argument(
-        "--dry-run", "-d", action="store_true", help="dry run. This will not push to github."
-    )
-    return vars(parser.parse_args())
-
-
-def get_repo():
-    return_val = ""
-    if "GIT_AUTO_MERGE_REPO" in os.environ:
-        return_val = os.environ["GIT_AUTO_MERGE_REPO"]
-        assert return_val != ""
+@click.pass_context
+def get_repo(click_context):
+    return_val = click_context.params.get("repo")
+    assert return_val != ""
     return return_val
 
 
@@ -212,13 +178,13 @@ def clone():
     repo = get_repo()
     repo_name = get_repo_name()
     try:
-        logger.info("Attempting to clone repo = {}", repo)
-        logger.warning("This may fail if the repo already exists")
+        log.info("Attempting to clone repo = {}", repo)
+        log.warning("This may fail if the repo already exists")
         command = f" git clone {repo}"
         utils.execute_shell(command)
     except CalledProcessError as err:  #  pylint: disable=broad-exception-caught
         if "already exists" in err.output:
-            logger.info("Trying to fetch repo {} instead", repo)
+            log.info("Trying to fetch repo {} instead", repo)
             command = f"cd {repo_name} && git fetch --prune"
             utils.execute_shell(command)
         else:
@@ -229,16 +195,21 @@ def clone():
     )
     utils.execute_shell(f"git reset --hard HEAD && git checkout {default_branch} && git pull")
     if GIT_AUTO_MERGE_CONFIG_BRANCH is not None:
-        logger.info("checking out config branch {}", GIT_AUTO_MERGE_CONFIG_BRANCH)
+        log.info("checking out config branch {}", GIT_AUTO_MERGE_CONFIG_BRANCH)
         utils.execute_shell(f"git checkout {GIT_AUTO_MERGE_CONFIG_BRANCH}")
     os.chdir(orig_dir)
 
 
-def git_push(branch):
-    if CLI_ARGS.dry_run:
-        logger.info(f"dry run: skipping push for {branch}")
+@click.pass_context
+def git_push(click_context, branch, merge_output):
+    dry_run = click_context.params.get("dry_run")
+    if dry_run:
+        log.info(f"dry run: skipping push for {branch}")
         return False
-    utils.execute_shell(f"git push origin {branch}")
+    if "Already up to date" not in merge_output:
+        utils.execute_shell(f"git push origin {branch}")
+    else:
+        log.info("Nothing to do: {}", merge_output)
     return True
 
 
@@ -254,43 +225,29 @@ def merge_all(merge_item: MergeItem) -> list[MergeError]:
 
 def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
     errors = []
-    logger.info("Merging from {} to {}", merge_from, merge_to)
+    log.info("Merging from {} to {}", merge_from, merge_to)
     command = "git reset --hard HEAD"
     command += f" && git clean -fdx && git checkout {merge_to}"
     command += f" && git reset --hard origin/{merge_to}"
     command += " && git submodule update --init --recursive"
     utils.execute_shell(command)
     try:
-        message = utils.execute_shell(f"git merge origin/{merge_from}")
+        merge_output = utils.execute_shell(f"git merge origin/{merge_from}")
     except CalledProcessError as err:
-        logger.error(
+        log.error(
             f"Merging failed from {merge_from} to {merge_to} with error: {err.output}",
         )
         merge_error = MergeError(merge_from, merge_to, err)
         if "conflict" in err.output:
-            logger.info("Merge conflict detected")
+            log.info("Merge conflict detected")
             merge_error.conflict = True
             command = f"git log {merge_to}..{merge_from}"
             command += " --no-merges --pretty=format:'%ae' | sort | uniq"
             merge_error.emails = utils.execute_shell(command).split("\n")
         errors.append(merge_error)
     else:
-        if "Already up to date" not in message:
-            git_push(merge_to)
-        else:
-            logger.info("Nothing to do: {}", message)
+        git_push(merge_to, merge_output)
     return errors
-
-
-def validate_environment():
-    errors_found = False
-    if "GIT_AUTO_MERGE_REPO" not in os.environ:
-        message = "Expected the GIT_AUTO_MERGE_REPO environment variable to contain a"
-        message += " git repo url."
-        logger.error(message)
-        errors_found = True
-    if errors_found:
-        sys.exit(1)
 
 
 def handle_errors(merge_errors: list[MergeError]):
@@ -303,14 +260,14 @@ def handle_errors(merge_errors: list[MergeError]):
     assert not os.path.exists(reports_path)
     if not os.path.exists(reports_dir):
         os.mkdir(reports_dir)
-    logger.info("Logging error report")
+    log.info("Logging error report")
     for merge_error in merge_errors:
-        logger.error(merge_error)
-    logger.info(f"Writing error report to {reports_path}")
+        log.error(merge_error)
+    log.info(f"Writing error report to {reports_path}")
     with open(reports_path, "w", encoding="utf-8") as file:
         result = str(jsonpickle.encode(merge_errors, unpicklable=False, indent=2))
         file.write(result)
-        logger.info("Error report written to {}", reports_path)
+        log.info("Error report written to {}", reports_path)
     sys.exit(1)
 
 
@@ -324,16 +281,16 @@ def load_env():
     if os.environ.get("GIT_AUTO_MERGE_CONFIG_BRANCH"):
         global GIT_AUTO_MERGE_CONFIG_BRANCH
         GIT_AUTO_MERGE_CONFIG_BRANCH = os.environ["GIT_AUTO_MERGE_CONFIG_BRANCH"]
-    if os.environ.get("GIT_AUTO_MERGE_LOG_LEVEL"):
-        CLI_ARGS.log_level = os.environ["GIT_AUTO_MERGE_LOG_LEVEL"]
 
 
-def load_config(path=None):
+@click.pass_context
+def load_config(click_context, path=None):
     config = {}
+    should_use_default_plan = click_context.params.get("should_use_default_plan")
     config_file_in_repo_path = f"{get_repo_path()}/{GIT_AUTO_MERGE_JSON}"
     if path:
         config = load_config_from_path(path)
-    elif os.path.exists(GIT_AUTO_MERGE_JSON) and CLI_ARGS.should_use_default_plan:
+    elif os.path.exists(GIT_AUTO_MERGE_JSON) and should_use_default_plan:
         config = load_config_from_path(GIT_AUTO_MERGE_JSON)
     elif os.path.exists(config_file_in_repo_path):
         config = load_config_from_path(config_file_in_repo_path)
@@ -345,7 +302,7 @@ def load_config(path=None):
 
 
 def load_config_from_path(path):
-    logger.info("Loading config from path {}", path)
+    log.info("Loading config from path {}", path)
     with open(path, encoding="utf-8") as file:
         config = json.load(file)
     return config
@@ -399,12 +356,12 @@ def select_branches(branch_list, selectors_config) -> list:
 def process_selectors_config(
     selectors_config, branch_list, upstream: MergeItem, group, sort_type=""
 ) -> MergeItem:
-    logger.debug("selectors_config = {}, upstream = {}", selectors_config, upstream)
+    log.debug("selectors_config = {}, upstream = {}", selectors_config, upstream)
     return_val = upstream or MergeItem(group=group)
     return_val.group = group
     selected_branches = select_branches(branch_list=branch_list, selectors_config=selectors_config)
     if len(selected_branches) == 0:
-        logger.warning(f"No branches matched for {selectors_config}")
+        log.warning(f"No branches matched for {selectors_config}")
     if len(selected_branches) == 1:
         if upstream is not None:
             return_val = upstream.add_downstream_branch(branch=selected_branches[0], group=group)
@@ -483,24 +440,49 @@ def build_plan(config) -> MergeItem:
     return plan
 
 
-def main():
+@click.command(
+    context_settings={"auto_envvar_prefix": "GIT_AUTO_MERGE"},
+    epilog="Check out the docs at https://github.com/clintmod/git-auto-merge for more details",
+)
+@click.option(
+    "-r",
+    "--repo",
+    required=True,
+    help="The git repo to operate on",
+)
+@click.option(
+    "-l",
+    "--log-level",
+    default="INFO",
+    help="The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+)
+@click.option(
+    "-u",
+    "--should-use-default-plan",
+    default=False,
+    help="Use the default plan from the .git-auto-merge.json config file in this repo",
+)
+@click.option(
+    "-d",
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="This mode will do everything except git push",
+)
+def cli(**args):
+    """
+    A tool to automatically merge git branches.
+    """
     cur_dir = os.getcwd()
-    args = parse_args()
-    print("args = ", args)
-    global CLI_ARGS
-    CLI_ARGS = CliArgs(**args)
-    configure_logging()
-    validate_environment()
     load_env()
+    configure_logging()
+    log.info("args = {}", args)
     clone()
     config = load_config()
     plan = build_plan(config)
-    logger.info("Plan: {}", plan)
+    log.info("Plan: {}", plan)
     os.chdir(f"{get_repo_path()}")
     errors = merge_all(plan)
     os.chdir(cur_dir)
     handle_errors(errors)
-
-
-if __name__ == "__main__":
-    main()
+    log.info("Merge complete")

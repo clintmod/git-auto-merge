@@ -14,7 +14,36 @@ A tool to automatically merge git branches.
 
 # Installation
 
+```
+
+git clone git@github.com:clintmod/git-auto-merge.git
+make
+
+```
+
+Or you can pull the docker images: 
+
+```
+docker pull clintmod/git-auto-merge
+```
+
 # Usage
+
+```
+Usage: git-auto-merge [OPTIONS]
+
+  A tool to automatically merge git branches.
+
+Options:
+  -r, --repo TEXT                 The git repo to operate on  [required]
+  -l, --log-level TEXT            The log level (DEBUG, INFO, WARNING, ERROR,
+                                  CRITICAL)
+  -u, --should-use-default-plan BOOLEAN
+                                  Use the default plan from the .git-auto-
+                                  merge.json config file in this repo
+  -d, --dry-run                   This mode will do everything except git push
+  --help                          Show this message and exit.
+```
 
 # Example
 
