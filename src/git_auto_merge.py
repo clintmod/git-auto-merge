@@ -108,7 +108,8 @@ class MergeError:
         return_val = "An error occurred merging"
         return_val += f" from {self.merge_from} to {self.merge_to}."
         if self.error:
-            return_val += f"\nThe error message was: {self.error.output}"
+            first_two_lines = self.error.output.split("\n")[:2]
+            return_val += f"\nThe error message was:\n{first_two_lines}"
         return_val += f"\nThe following emails were found via the diff: {self.emails}"
         return return_val
 
@@ -241,7 +242,7 @@ def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
         if "conflict" in err.output:
             log.info("Merge conflict detected")
             merge_error.conflict = True
-            command = f"git log {merge_to}..{merge_from}"
+            command = f"git log origin/{merge_to}..origin/{merge_from}"
             command += " --no-merges --pretty=format:'%ae' | sort | uniq"
             merge_error.emails = utils.execute_shell(command).split("\n")
         errors.append(merge_error)

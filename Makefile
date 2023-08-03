@@ -20,6 +20,8 @@ all: reports format build test-unit lint test-integration
 
 dev: reports format build test-unit lint
 
+release: all safety docker-build docker-test docker-scan docker-push tag git-push
+
 reports:
 	mkdir -p reports
 
@@ -63,6 +65,10 @@ dry-run:
 
 run:
 	poetry run $(BIN) $(EXTRA_RUN_ARGS)
+
+run-conflict:
+	poetry run $(BIN) --repo git@github.com:clintmod/git_auto_merge_test_conflict.git \
+	$(EXTRA_RUN_ARGS)
 
 reports/lint.ansi: $(SRC)
 	poetry run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
