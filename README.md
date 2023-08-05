@@ -35,14 +35,15 @@ Usage: git-auto-merge [OPTIONS]
   A tool to automatically merge git branches.
 
 Options:
-  -r, --repo TEXT                 The git repo to operate on  [required]
-  -l, --log-level TEXT            The log level (DEBUG, INFO, WARNING, ERROR,
-                                  CRITICAL)
-  -u, --should-use-default-plan BOOLEAN
-                                  Use the default plan from the .git-auto-
-                                  merge.json config file in this repo
-  -d, --dry-run                   This mode will do everything except git push
-  --help                          Show this message and exit.
+  -r, --repo TEXT              The git repository to operate on  [required]
+  -w, --work-dir TEXT          The directory to use for the git repo  [default: workdir]
+  -l, --log-level TEXT         The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  -cb, --config-brach TEXT     The branch in the git repository to use for the .git-auto-merge.json config file  [default: main]
+  -c, --config-file-name TEXT  The name of the config file to use  [default: .git-auto-merge.json]
+  -udp, --use-default-plan     Use the default plan from the .git-auto-merge.json config file in this git repository
+  -d, --dry-run                This mode will do everything except git push
+  --help                       Show this message and exit.
+
 ```
 
 # Example
