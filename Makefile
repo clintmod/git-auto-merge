@@ -32,6 +32,8 @@ format: reports/format.ansi
 
 build: $(BIN)
 
+test: test-unit test-integration
+
 reports/test-unit.ansi: $(SRC)
 	unbuffer poetry run pytest -vvv \
 		--tb=long \

@@ -19,12 +19,12 @@ def mock_os_makedirs(mocker):
 @pytest.fixture(autouse=True, name="click_context")
 def create_click_context():
     click_context = click.Context(click.Command("git-auto-merge"))
-    click_context.params = {
-        "dry_run": False,
-        "log_level": "INFO",
-        "should_use_default_plan": True,
-        "repo": "git@github.com:clintmod/git_auto_merge_test.git",
-    }
+    click_context.params = dict(
+        dry_run=False,
+        log_level="INFO",
+        use_default_plan=True,
+        repo="git@github.com:clintmod/git_auto_merge_test.git",
+    )
     return click_context
 
 

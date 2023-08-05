@@ -13,11 +13,6 @@ from packaging.version import Version
 
 import utils
 
-GIT_AUTO_MERGE_CONFIG_BRANCH = None
-GIT_AUTO_MERGE_JSON = ".git-auto-merge.json"
-GIT_AUTO_MERGE_REPO_BASE_DIR = "repos"
-
-
 # pylint: disable=anomalous-backslash-in-string
 SEMVER_PATTERN = r"(\d+\.\d+\.\d+)"
 
@@ -114,16 +109,14 @@ class MergeError:
         return return_val
 
 
-@click.pass_context
-def configure_logging(click_context):
-    log_level = click_context.params.get("log_level")
+def configure_logging():
+    log_level = get_log_level()
     log_format = "<green>{time:YYYY-MM-DD HH:mm:ss,SSS}</green> <level>{level: <8}</level>"
     log_format += "<cyan>src/{file}:{line}</cyan> : "
     log_format += "<level>{message}</level>"
     log.remove()
-    level = log_level if log_level else "INFO"
-    log.add(sink=sys.stderr, format=log_format, level=level)
-    return level
+    log.add(sink=sys.stderr, format=log_format, level=log_level)
+    return log_level
 
 
 def get_merge_items_in_group(merge_item, group):
@@ -154,6 +147,22 @@ def get_branch_list():
 
 
 @click.pass_context
+def get_log_level(click_context):
+    return_val = click_context.params.get("log_level")
+    if return_val is None:
+        return_val = "INFO"
+    return return_val
+
+
+@click.pass_context
+def get_config_file_name(click_context):
+    name = click_context.params.get("config_file_name")
+    if name is None:
+        name = ".git-auto-merge.json"
+    return name
+
+
+@click.pass_context
 def get_repo(click_context):
     return_val = click_context.params.get("repo")
     assert return_val != ""
@@ -167,15 +176,39 @@ def get_repo_name():
     return repo_name
 
 
+@click.pass_context
+def get_work_dir(click_context):
+    return_val = click_context.params.get("work_dir")
+    if return_val is None:
+        return_val = "workdir"
+    return return_val
+
+
 def get_repo_path():
-    return f"{GIT_AUTO_MERGE_REPO_BASE_DIR}/{get_repo_name()}"
+    return f"{get_work_dir()}/{get_repo_name()}"
+
+
+@click.pass_context
+def get_dry_run(click_context):
+    return click_context.params.get("dry_run")
+
+
+@click.pass_context
+def get_config_branch(click_context):
+    return click_context.params.get("config_branch")
+
+
+@click.pass_context
+def get_use_default_plan(click_context):
+    return click_context.params.get("use_default_plan")
 
 
 def clone():
     err = None
-    os.makedirs("repos", exist_ok=True)
+    work_dir = get_work_dir()
+    os.makedirs(work_dir, exist_ok=True)
     orig_dir = os.getcwd()
-    os.chdir("repos")
+    os.chdir(work_dir)
     repo = get_repo()
     repo_name = get_repo_name()
     try:
@@ -195,15 +228,15 @@ def clone():
         "git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'"
     )
     utils.execute_shell(f"git reset --hard HEAD && git checkout {default_branch} && git pull")
-    if GIT_AUTO_MERGE_CONFIG_BRANCH is not None:
-        log.info("checking out config branch {}", GIT_AUTO_MERGE_CONFIG_BRANCH)
-        utils.execute_shell(f"git checkout {GIT_AUTO_MERGE_CONFIG_BRANCH}")
+    config_branch = get_config_branch()
+    if config_branch is not None:
+        log.info("checking out config branch {}", config_branch)
+        utils.execute_shell(f"git checkout {config_branch}")
     os.chdir(orig_dir)
 
 
-@click.pass_context
-def git_push(click_context, branch, merge_output):
-    dry_run = click_context.params.get("dry_run")
+def git_push(branch, merge_output):
+    dry_run = get_dry_run()
     if dry_run:
         log.info(f"dry run: skipping push for {branch}")
         return False
@@ -272,32 +305,20 @@ def handle_errors(merge_errors: list[MergeError]):
     sys.exit(1)
 
 
-def load_env():
-    if os.environ.get("GIT_AUTO_MERGE_JSON"):
-        global GIT_AUTO_MERGE_JSON
-        GIT_AUTO_MERGE_JSON = os.environ["GIT_AUTO_MERGE_JSON"]
-    if os.environ.get("GIT_AUTO_MERGE_REPO_BASE_DIR"):
-        global GIT_AUTO_MERGE_REPO_BASE_DIR
-        GIT_AUTO_MERGE_REPO_BASE_DIR = os.environ["GIT_AUTO_MERGE_REPO_BASE_DIR"]
-    if os.environ.get("GIT_AUTO_MERGE_CONFIG_BRANCH"):
-        global GIT_AUTO_MERGE_CONFIG_BRANCH
-        GIT_AUTO_MERGE_CONFIG_BRANCH = os.environ["GIT_AUTO_MERGE_CONFIG_BRANCH"]
-
-
-@click.pass_context
-def load_config(click_context, path=None):
+def load_config(path=None):
     config = {}
-    should_use_default_plan = click_context.params.get("should_use_default_plan")
-    config_file_in_repo_path = f"{get_repo_path()}/{GIT_AUTO_MERGE_JSON}"
+    config_file_name = get_config_file_name()
+    use_default_plan = get_use_default_plan()
+    config_file_in_repo_path = f"{get_repo_path()}/{config_file_name}"
     if path:
         config = load_config_from_path(path)
-    elif os.path.exists(GIT_AUTO_MERGE_JSON) and should_use_default_plan:
-        config = load_config_from_path(GIT_AUTO_MERGE_JSON)
+    elif os.path.exists(config_file_name) and use_default_plan:
+        config = load_config_from_path(config_file_name)
     elif os.path.exists(config_file_in_repo_path):
         config = load_config_from_path(config_file_in_repo_path)
     else:
         msg = f"No config file found at {config_file_in_repo_path} \
-                and --should-use-default-plan was not specified."
+                and --use-default-plan was not specified."
         raise ValueError(msg)
     return config
 
@@ -442,14 +463,21 @@ def build_plan(config) -> MergeItem:
 
 
 @click.command(
-    context_settings={"auto_envvar_prefix": "GIT_AUTO_MERGE"},
+    context_settings=dict(auto_envvar_prefix="GIT_AUTO_MERGE", max_content_width=500),
     epilog="Check out the docs at https://github.com/clintmod/git-auto-merge for more details",
 )
 @click.option(
     "-r",
     "--repo",
     required=True,
-    help="The git repo to operate on",
+    help="The git repository to operate on",
+)
+@click.option(
+    "-w",
+    "--work-dir",
+    default="workdir",
+    show_default=True,
+    help="The directory to use for the git repo",
 )
 @click.option(
     "-l",
@@ -458,16 +486,33 @@ def build_plan(config) -> MergeItem:
     help="The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
 @click.option(
-    "-u",
-    "--should-use-default-plan",
+    "-cb",
+    "--config-brach",
+    default="main",
+    show_default=True,
+    help="The branch in the git repository to use for the .git-auto-merge.json config file",
+)
+@click.option(
+    "-c",
+    "--config-file-name",
+    default=".git-auto-merge.json",
+    show_default=True,
+    help="The name of the config file to use",
+)
+@click.option(
+    "-udp",
+    "--use-default-plan",
+    is_flag=True,
     default=False,
-    help="Use the default plan from the .git-auto-merge.json config file in this repo",
+    show_default=True,
+    help="Use the default plan from the .git-auto-merge.json config file in this git repository",
 )
 @click.option(
     "-d",
     "--dry-run",
     is_flag=True,
     default=False,
+    show_default=True,
     help="This mode will do everything except git push",
 )
 def cli(**args):
@@ -475,7 +520,6 @@ def cli(**args):
     A tool to automatically merge git branches.
     """
     cur_dir = os.getcwd()
-    load_env()
     configure_logging()
     log.info("args = {}", args)
     clone()
