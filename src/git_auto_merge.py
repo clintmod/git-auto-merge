@@ -487,7 +487,7 @@ def build_plan(config) -> MergeItem:
 )
 @click.option(
     "-cb",
-    "--config-brach",
+    "--config-branch",
     default="main",
     show_default=True,
     help="The branch in the git repository to use for the .git-auto-merge.json config file",

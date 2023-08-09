@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "git-auto-merge"
-version = "1.3.4"
+version = "1.3.5"
 description = ""
 authors = ["Clint M <cmodien@gmail.com>"]
 readme = "README.md"
