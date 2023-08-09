@@ -4,6 +4,7 @@ FROM python:${PYTHON_VERSION}-alpine as base
 RUN apk add --no-cache \
     bash \
     curl \
+    jq \
     git \
     openssh=9.1_p1-r4 \
     tzdata \
