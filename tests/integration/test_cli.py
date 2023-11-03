@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from click.testing import CliRunner
 
@@ -6,7 +8,12 @@ import git_auto_merge
 
 @pytest.fixture(autouse=True)
 def args():
-    return ["--repo", "git@github.com:clintmod/git_auto_merge_test.git"]
+    return ["--repo", os.getenv("GIT_AUTO_MERGE_REPO")]
+
+
+@pytest.fixture(autouse=True)
+def conflict_args():
+    return ["--repo", os.getenv("GIT_AUTO_MERGE_REPO_CONFLICT")]
 
 
 def test_cli_works(args):
@@ -34,10 +41,9 @@ def test_cli_logs_everything_when_debug(args):
     assert result.exit_code == 0
 
 
-def test_cli_exits_non_zero_on_error(args):
+def test_cli_exits_non_zero_on_error(conflict_args):
     runner = CliRunner()
-    args += ["--repo", "git@github.com:clintmod/git_auto_merge_test_conflict.git"]
-    result = runner.invoke(git_auto_merge.cli, args)
+    result = runner.invoke(git_auto_merge.cli, conflict_args)
     assert result.exit_code != 0
 
 

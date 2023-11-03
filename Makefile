@@ -1,5 +1,6 @@
 POETRY_VIRTUALENVS_IN_PROJECT = true
-GIT_AUTO_MERGE_REPO ?= git@github.com:clintmod/git_auto_merge_test.git
+GIT_AUTO_MERGE_REPO ?= https://github.com/clintmod/git_auto_merge_test.git
+GIT_AUTO_MERGE_REPO_CONFLICT ?= https://github.com/clintmod/git_auto_merge_test_conflict.git
 IMAGE_NAME ?= clintmod/git-auto-merge
 export
 
@@ -12,6 +13,9 @@ VERSION = $(shell yq .tool.poetry.version pyproject.toml)
 SRC = Makefile .venv pyproject.toml .git-auto-merge.json \
 	  $(shell find src tests -name '*.py') \
 	  $(shell find tests -name '*.txt')
+
+.venv:
+	poetry install
 
 $(BIN): pyproject.toml Makefile .venv
 	poetry install
@@ -69,7 +73,7 @@ run:
 	poetry run $(BIN) $(EXTRA_RUN_ARGS)
 
 run-conflict:
-	poetry run $(BIN) --repo git@github.com:clintmod/git_auto_merge_test_conflict.git \
+	poetry run $(BIN) --repo $(GIT_AUTO_MERGE_REPO_CONFLICT) \
 	$(EXTRA_RUN_ARGS)
 
 reports/lint.ansi: $(SRC)

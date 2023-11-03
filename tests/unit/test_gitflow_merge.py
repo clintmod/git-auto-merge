@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import sys
 from subprocess import CalledProcessError
 from unittest.mock import ANY, patch
@@ -23,7 +24,7 @@ def create_click_context():
         dry_run=False,
         log_level="INFO",
         use_default_plan=True,
-        repo="git@github.com:clintmod/git_auto_merge_test.git",
+        repo=os.getenv("GIT_AUTO_MERGE_REPO"),
     )
     return click_context
 
