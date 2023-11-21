@@ -91,6 +91,8 @@ git-push:
 	git push --tags
 	git push
 
+docker: docker-build docker-test docker-scan docker-push
+
 docker-build:
 	docker build \
 		--build-arg PYTHON_VERSION=$(shell cat .python-version) \

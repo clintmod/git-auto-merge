@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.11.1
+ARG PYTHON_VERSION=3.11.6
 FROM python:${PYTHON_VERSION}-alpine as base
 
 RUN apk add --no-cache \
@@ -6,7 +6,7 @@ RUN apk add --no-cache \
     curl \
     jq \
     git \
-    openssh=9.1_p1-r4 \
+    openssh \
     tzdata \
     && rm -rf /var/cache/apk/*
 
@@ -24,10 +24,10 @@ RUN mkdir src && touch README.md src/git_auto_merge.py
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+    POETRY_CACHE_DIR=/tmp/poetry_cache/
 
 RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --only main \
-    && rm -rf $POETRY_CACHE_DIR
+    && rm -rf $POETRY_CACHE_DIR/*
 
 FROM base as final
 

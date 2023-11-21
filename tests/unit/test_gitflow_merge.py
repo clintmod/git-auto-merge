@@ -291,6 +291,7 @@ def multi_project_branch_list_raw():
         "      main\n"
         "      staging\n"
         "      release/bank/2.3.0\n"
+        "      release/bank/2.3\n"
         "      release/bank/2.4.0\n"
         "      hotfix/bank/2.3.1-codename\n"
         "      hotfix/bank/2.4.2\n"

@@ -338,8 +338,11 @@ def process_regex_selector_config(regex, branch_list):
 def process_versioned_branches(selected_branches, group, upstream: MergeItem):
     versioned_branches = []
     for branch in selected_branches:
-        version = VersionedBranch(branch)
-        versioned_branches.append(version)
+        try:
+            version = VersionedBranch(branch)
+            versioned_branches.append(version)
+        except AssertionError:
+            log.warning(f"Skipping branch with bad version: {branch}")
     versioned_branches.sort()
     new_merge_item = upstream
     for branch in versioned_branches:
@@ -417,9 +420,12 @@ def process_downstream_for_each_config(
     for item in merge_items_in_group:
         for branch in matching_branches:
             if match_on == "version":
-                versioned_branch = VersionedBranch(branch)
-                if item.version == versioned_branch.version:
-                    item.add_downstream_branch(branch=branch, group=group)
+                try:
+                    versioned_branch = VersionedBranch(branch)
+                    if item.version == versioned_branch.version:
+                        item.add_downstream_branch(branch=branch, group=group)
+                except AssertionError:
+                    log.warning(f"Skipping branch with bad version: {branch}")
             if match_on == "branch":
                 if branch in item.branch_name:
                     item.add_downstream_branch(branch=branch, group=group)
