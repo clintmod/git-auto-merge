@@ -261,7 +261,7 @@ def merge_branches(merge_from: str, merge_to: str) -> list[MergeError]:
     errors = []
     log.info("Merging from {} to {}", merge_from, merge_to)
     command = "git reset --hard HEAD"
-    command += f" && git clean -fdx && git checkout {merge_to}"
+    command += f" && git clean -fdx && git checkout -f {merge_to}"
     command += f" && git reset --hard origin/{merge_to}"
     command += " && git submodule update --init --recursive"
     utils.execute_shell(command)
