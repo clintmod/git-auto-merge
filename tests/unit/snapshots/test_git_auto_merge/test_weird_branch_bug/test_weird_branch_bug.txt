@@ -1,0 +1,12 @@
+<root> main
+main -> release/avengers-24.1.1
+  release/avengers-24.1.1 -> release/batman-24.2.0
+    release/batman-24.2.0 -> release/batgirl-24.2.1
+      release/batgirl-24.2.1 -> release/catwoman-24.3.0
+        release/catwoman-24.3.0 -> release/carnage-24.3.1
+          release/carnage-24.3.1 -> release/deadpool-24.4.0
+            release/deadpool-24.4.0 -> release/donkeykong-24.4.1
+              release/donkeykong-24.4.1 -> release/electro-24.5.1
+                release/electro-24.5.1 -> release/eggman-24.5.2
+                  release/eggman-24.5.2 -> release/flash-24.6.0
+                    release/flash-24.6.0 -> develop

@@ -8,7 +8,7 @@ from unittest.mock import ANY, patch
 import click
 import pytest
 
-import git_auto_merge as gm
+import git_auto_merge as gam
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,7 @@ def create_click_context():
 
 def test_get_repo_name(click_context):
     with click_context:
-        assert "git_auto_merge_test" == gm.get_repo_name()
+        assert "git_auto_merge_test" == gam.get_repo_name()
 
 
 def execute_shell_func(command):
@@ -44,7 +44,7 @@ def test_configure_logging(add_logger_mock, click_context):
     with click_context:
         level = "ERROR"
         click_context.params["log_level"] = level
-        gm.configure_logging()
+        gam.configure_logging()
         add_logger_mock.assert_called_with(sink=sys.stderr, format=ANY, level=level)
 
 
@@ -53,26 +53,26 @@ def test_configure_logging_verbose(add_logger_mock, click_context):
     with click_context:
         level = "VERBOSE"
         click_context.params["log_level"] = level
-        gm.configure_logging()
+        gam.configure_logging()
         add_logger_mock.assert_called_with(sink=sys.stderr, format=ANY, level=level)
 
 
 def test_merge_item():
     branch_name = "main"
-    merge_item = gm.MergeItem(group="", branch_name=branch_name)
+    merge_item = gam.MergeItem(group="", branch_name=branch_name)
     assert merge_item.branch_name == "main"
 
 
 def test_versioned_branch_raises_assertion_error():
     with pytest.raises(AssertionError):
-        gm.VersionedBranch("asdf")
+        gam.VersionedBranch("asdf")
 
 
 def test_sorting_versioned_branches_works():
     hotfixes = ["hotfix/11.0.1", "hotfix/1.0.2", "hotfix/22.0.1", "hotfix/2.0.2"]
-    versioned_hotfixes = [gm.VersionedBranch(branch) for branch in hotfixes]
+    versioned_hotfixes = [gam.VersionedBranch(branch) for branch in hotfixes]
     releases = ["release/11.1.0", "release/1.1.0", "release/22.2.0", "release/2.2.0"]
-    versioned_releases = [gm.VersionedBranch(branch) for branch in releases]
+    versioned_releases = [gam.VersionedBranch(branch) for branch in releases]
     all_versioned = versioned_hotfixes + versioned_releases
     all_versioned.sort()
     sorted_versioned = [str(branch) for branch in all_versioned]
@@ -96,9 +96,9 @@ def test_sorting_versioned_branches_works():
 def test_merge_all(raw_branches_mock, execute_shell_mock, click_context):
     with click_context:
         raw_branches_mock.return_value = "  develop\n" + "  main\n"
-        config = gm.load_config()
-        plan = gm.build_plan(config)
-        errors = gm.merge_all(plan)
+        config = gam.load_config()
+        plan = gam.build_plan(config)
+        errors = gam.merge_all(plan)
         assert not errors
         execute_shell_mock.assert_called()
 
@@ -107,20 +107,20 @@ def test_git_push_does_not_push_when_dryrun_is_true():
     context = click.Context(click.Command("git-auto-merge"))
     context.params = {"dry_run": True}
     with context:
-        assert not gm.git_push("asdf", "asdf")
+        assert not gam.git_push("asdf", "asdf")
 
 
 @patch("utils.execute_shell")
 def test_clone(execute_shell_mock, click_context):
     with click_context:
-        gm.clone()
+        gam.clone()
         execute_shell_mock.assert_called()
 
 
 @patch("utils.execute_shell")
 def test_merge_branches(execute_shell_mock, click_context):
     with click_context:
-        gm.merge_branches("asdf", "asdf")
+        gam.merge_branches("asdf", "asdf")
         execute_shell_mock.assert_called()
 
 
@@ -128,12 +128,12 @@ def test_merge_branches(execute_shell_mock, click_context):
 def test_merge_branches_does_not_push_when_up_to_date(execute_shell_mock, click_context):
     with click_context:
         execute_shell_mock.return_value = "Already up to date"
-        gm.merge_branches("asdf", "asdf")
+        gam.merge_branches("asdf", "asdf")
 
 
 def test_merge_problem():
     err = CalledProcessError(returncode=1, cmd="asdf", output="test error")
-    mp1 = gm.MergeError(merge_from="merge_from", merge_to="merge_to", error=err)
+    mp1 = gam.MergeError(merge_from="merge_from", merge_to="merge_to", error=err)
     assert str(mp1)
 
 
@@ -145,7 +145,7 @@ def raise_merge_error(command):
 @patch("utils.execute_shell")
 def test_merge_branches_reports_errors(execute_shell_mock):
     execute_shell_mock.side_effect = raise_merge_error
-    errors = gm.merge_branches(merge_from="from", merge_to="to")
+    errors = gam.merge_branches(merge_from="from", merge_to="to")
     assert errors
 
 
@@ -154,11 +154,11 @@ def test_merge_branches_reports_errors(execute_shell_mock):
 def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock, click_context):
     with click_context:
         raw_branches_mock.side_effect = get_branch_list_raw
-        config = gm.load_config()
-        plan = gm.build_plan(config)
+        config = gam.load_config()
+        plan = gam.build_plan(config)
         execute_shell_mock.side_effect = raise_merge_error
-        gm.log.info("Plan: {}", plan)
-        errors = gm.merge_all(merge_item=plan)
+        gam.log.info("Plan: {}", plan)
+        errors = gam.merge_all(merge_item=plan)
         assert errors
 
 
@@ -166,23 +166,23 @@ def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock, click_c
 @patch("git_auto_merge.log.error")
 def test_handle_errors(log_err_mock, sys_exit_mock):
     err1 = Exception("test error1")
-    mp1 = gm.MergeError(merge_from="merge_from", merge_to="merge_to", error=err1)
-    gm.handle_errors([mp1])
+    mp1 = gam.MergeError(merge_from="merge_from", merge_to="merge_to", error=err1)
+    gam.handle_errors([mp1])
     log_err_mock.assert_called_with(mp1)
     sys_exit_mock.assert_called()
 
 
 def test_load_config(click_context):
     with click_context:
-        gm.load_config()
+        gam.load_config()
 
 
 @patch("git_auto_merge.get_branch_list_raw")
 def test_build_plan(raw_branches_mock, snapshot, click_context):
     with click_context:
         raw_branches_mock.side_effect = get_branch_list_raw
-        config = gm.load_config()
-        plan = gm.build_plan(config)
+        config = gam.load_config()
+        plan = gam.build_plan(config)
         snapshot.assert_match(f"{str(plan)}\n", "test_build_plan.txt")
 
 
@@ -190,8 +190,8 @@ def test_build_plan(raw_branches_mock, snapshot, click_context):
 def test_build_plan_works_when_only_main(raw_branches_mock, snapshot, click_context):
     with click_context:
         raw_branches_mock.return_value = "      main\n"
-        config = gm.load_config()
-        plan = gm.build_plan(config)
+        config = gam.load_config()
+        plan = gam.build_plan(config)
         snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_only_main.txt")
 
 
@@ -199,8 +199,8 @@ def test_build_plan_works_when_only_main(raw_branches_mock, snapshot, click_cont
 def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot, click_context):
     with click_context:
         raw_branches_mock.return_value = "  develop\n" + "  main\n"
-        config = gm.load_config()
-        plan = gm.build_plan(config)
+        config = gam.load_config()
+        plan = gam.build_plan(config)
         snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_for_main_and_develop.txt")
 
 
@@ -208,9 +208,18 @@ def test_build_plan_works_when_only_main_and_develop(raw_branches_mock, snapshot
 def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot, click_context):
     with click_context:
         raw_branches_mock.side_effect = multi_project_branch_list_raw
-        config = gm.load_config("tests/unit/multi-project-config.json")
-        plan = gm.build_plan(config)
+        config = gam.load_config("tests/unit/multi-project-config.json")
+        plan = gam.build_plan(config)
         snapshot.assert_match(f"{str(plan)}\n", "test_build_plan_works_when_multi_project.txt")
+
+
+@patch("git_auto_merge.get_branch_list_raw")
+def test_weird_branch_bug(raw_branches_mock, snapshot, click_context):
+    with click_context:
+        raw_branches_mock.side_effect = get_weird_branch_bug
+        config = gam.load_config()
+        plan = gam.build_plan(config)
+        snapshot.assert_match(f"{str(plan)}\n", "test_weird_branch_bug.txt")
 
 
 def get_branch_list_raw():
@@ -299,4 +308,21 @@ def multi_project_branch_list_raw():
         "      release/auto/2.1.0\n"
         "      hotfix/auto/2.1.1-codename\n"
         "      hotfix/auto/2.2.2\n"
+    )
+
+
+def get_weird_branch_bug():
+    return (
+        "      main\n"
+        "      develop\n"
+        "      release/avengers-24.1.1\n"
+        "      release/batgirl-24.2.1\n"
+        "      release/batman-24.2.0\n"
+        "      release/carnage-24.3.1\n"
+        "      release/catwoman-24.3.0\n"
+        "      release/deadpool-24.4.0\n"
+        "      release/donkeykong-24.4.1\n"
+        "      release/eggman-24.5.2\n"
+        "      release/electro-24.5.1\n"
+        "      release/flash-24.6.0\n"
     )
