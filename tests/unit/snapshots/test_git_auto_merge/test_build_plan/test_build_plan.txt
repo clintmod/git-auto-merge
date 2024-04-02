@@ -1,4 +1,4 @@
-<root> main
+
 main -> release/2.3.0
   release/2.3.0 -> hotfix/2.3.1-codename
     hotfix/2.3.1-codename -> release/2.4.0

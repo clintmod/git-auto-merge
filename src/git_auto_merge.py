@@ -48,7 +48,8 @@ class MergeItem:
         if self.upstream is not None:
             return_val = f"{self.upstream.branch_name} -> {self.branch_name}"
         else:
-            return_val = f"<root> {self.branch_name}"
+            # return_val = f"<root> {self.branch_name}"
+            pass
         for merge_item in self.downstream:
             return_val += "\n{}{}".format("  " * self.depth(), str(merge_item))
         return return_val
@@ -147,24 +148,28 @@ def get_branch_list():
 
 
 @click.pass_context
-def get_log_level(click_context):
-    return_val = click_context.params.get("log_level")
-    if return_val is None:
+def get_log_level(click_context=None):
+    if click_context is None or click_context.params.get("log_level") is None:
         return_val = "INFO"
+    else:
+        return_val = click_context.params.get("log_level")
     return return_val
 
 
 @click.pass_context
-def get_config_file_name(click_context):
-    name = click_context.params.get("config_file_name")
-    if name is None:
-        name = ".git-auto-merge.json"
-    return name
+def get_config_file_name(click_context=None):
+    if click_context is None or click_context.params.get("config_file_name") is None:
+        return ".git-auto-merge.json"
+    else:
+        return click_context.params.get("config_file_name")
 
 
 @click.pass_context
-def get_repo(click_context):
-    return_val = click_context.params.get("repo")
+def get_repo(click_context=None):
+    if click_context is None:
+        return_val = ""
+    else:
+        return_val = click_context.params.get("repo")
     assert return_val != ""
     return return_val
 
@@ -177,10 +182,11 @@ def get_repo_name():
 
 
 @click.pass_context
-def get_work_dir(click_context):
-    return_val = click_context.params.get("work_dir")
-    if return_val is None:
+def get_work_dir(click_context=None):
+    if click_context is None or click_context.params.get("work_dir") is None:
         return_val = "workdir"
+    else:
+        return_val = click_context.params.get("work_dir")
     return return_val
 
 
@@ -189,18 +195,27 @@ def get_repo_path():
 
 
 @click.pass_context
-def get_dry_run(click_context):
-    return click_context.params.get("dry_run")
+def get_dry_run(click_context=None):
+    if click_context is None:
+        return True
+    else:
+        return click_context.params.get("dry_run")
 
 
 @click.pass_context
-def get_config_branch(click_context):
-    return click_context.params.get("config_branch")
+def get_config_branch(click_context=None):
+    if click_context is None:
+        return "main"
+    else:
+        return click_context.params.get("config_branch")
 
 
 @click.pass_context
-def get_use_default_plan(click_context):
-    return click_context.params.get("use_default_plan")
+def get_use_default_plan(click_context=None):
+    if click_context is None:
+        return True
+    else:
+        return click_context.params.get("use_default_plan")
 
 
 def clone():
@@ -402,12 +417,14 @@ def process_selectors_config(
     return return_val
 
 
-def process_branches_config(branches_config, branch_list, upstream: MergeItem):
+def process_branches_config(branches_config, branch_list, upstream: Optional[MergeItem]=None) -> Optional[MergeItem]:
+    merge_item = None
     for group in branches_config:
         branch_config = branches_config[group]
-        process_branch_config(
+        merge_item = merge_item or process_branch_config(
             branch_config=branch_config, branch_list=branch_list, upstream=upstream, group=group
         )
+    return merge_item
 
 
 def process_downstream_for_each_config(
@@ -431,9 +448,9 @@ def process_downstream_for_each_config(
                     item.add_downstream_branch(branch=branch, group=group)
 
 
-def process_branch_config(branch_config, branch_list, upstream, group) -> MergeItem:
+def process_branch_config(branch_config:dict, branch_list, upstream, group) -> MergeItem:
     selectors_config = branch_config.get("selectors")
-    sort_type = branch_config.get("sort")
+    sort_type:str = str(branch_config.get("sort"))
     merge_item = process_selectors_config(
         selectors_config=selectors_config,
         upstream=upstream,
@@ -456,7 +473,7 @@ def process_branch_config(branch_config, branch_list, upstream, group) -> MergeI
     return merge_item
 
 
-def build_plan(config) -> MergeItem:
+def build_plan(config) -> Optional[MergeItem]:
     branch_list = get_branch_list()
     plan_config = config["plan"]
     if not plan_config:
@@ -466,7 +483,6 @@ def build_plan(config) -> MergeItem:
         branch_config=root_config, branch_list=branch_list, upstream=None, group="root"
     )
     return plan
-
 
 @click.command(
     context_settings=dict(auto_envvar_prefix="GIT_AUTO_MERGE", max_content_width=500),
@@ -533,7 +549,8 @@ def cli(**args):
     plan = build_plan(config)
     log.info("Plan: {}", plan)
     os.chdir(f"{get_repo_path()}")
-    errors = merge_all(plan)
+    if plan:
+        errors = merge_all(plan)
     os.chdir(cur_dir)
     handle_errors(errors)
     log.info("Merge complete")

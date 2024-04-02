@@ -38,7 +38,7 @@ build: $(BIN)
 
 test: test-unit test-integration
 
-reports/test-unit.ansi: $(SRC)
+test-unit: $(SRC)
 	unbuffer poetry run pytest -vvv \
 		--tb=long \
 		--cov=src \
@@ -46,8 +46,6 @@ reports/test-unit.ansi: $(SRC)
 		$(EXTRA_TEST_ARGS) \
 	tests/unit \
 	| tee -i reports/test-unit.ansi
-
-test-unit: reports/test-unit.ansi
 	
 test-unit-update:
 	EXTRA_TEST_ARGS="--snapshot-update" make test-unit
