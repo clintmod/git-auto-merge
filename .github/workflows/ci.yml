@@ -6,24 +6,29 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      # unbuffer (used by the test targets) comes from expect
+      # unbuffer (used by the test tasks) comes from expect
       - name: Install expect
         run: sudo apt-get update && sudo apt-get install -y expect
 
-      # installs python + poetry pinned in .mise.toml
-      - uses: jdx/mise-action@v2
+      # installs python, uv, rite, and actionlint pinned in .mise.toml
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
 
       - name: Cache virtualenv
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
 
       - name: Build and test
         run: rite ci
@@ -31,10 +36,30 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
 
-      # only rite is needed for the docker build, not python/poetry
-      - uses: jdx/mise-action@v2
+      # only rite and hadolint are needed here, not python/uv
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      - name: Lint Dockerfile
+        run: rite lint:docker
 
       - name: Build image
         run: rite docker:build
+
+      - name: Scan image
+        run: rite docker:scan
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

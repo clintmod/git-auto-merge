@@ -1,9 +1,46 @@
-[tool.poetry]
+[project]
 name = "git-auto-merge"
 version = "1.3.10"
-description = ""
-authors = ["Clint M <cmodien@gmail.com>"]
+description = "A tool to automatically merge git branches"
+authors = [{ name = "Clint M", email = "cmodien@gmail.com" }]
 readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.1.6",
+    "jsonpickle>=3.0.1",
+    "loguru>=0.7.0",
+    "packaging>=25",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "black>=26",
+    "deptry>=0.25.1",
+    "flake8>=7.3.0",
+    "isort>=7",
+    "pip-audit>=2.10.1",
+    "pylint>=4",
+    "pyright>=1.1.313",
+    "pytest>=9",
+    "pytest-cov>=7",
+    "pytest-mock>=3",
+    "pytest-snapshot>=0.9.0",
+    "setuptools>=83",
+    "zizmor>=1.27.0",
+]
+
+[project.scripts]
+git-auto-merge = "git_auto_merge:cli"
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+# src holds flat modules (git_auto_merge.py, utils.py), not a package
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["git_auto_merge", "utils"]
 
 [tool.black]
 line_length = 100
@@ -16,30 +53,3 @@ profile = "black"
 #       is never run with python -O
 # B404: shelling out is this tool's purpose
 skips = ["B101", "B404"]
-
-[tool.poetry.dependencies]
-click = "^8.1.6"
-jsonpickle = "^3.0.1"
-loguru = "^0.7.0"
-packaging = "^21"
-python = "^3.11"
-
-[tool.poetry.group.dev.dependencies]
-black = "*"
-isort = "*"
-pylint = "*"
-pyright = "^1.1.313"
-pytest = "*"
-pytest-cov = "*"
-pytest-mock = "*"
-pytest-snapshot = "^0.9.0"
-safety = "*"
-flake8 = "^7.3.0"
-bandit = "^1.9.4"
-
-[tool.poetry.scripts]
-git-auto-merge = "git_auto_merge:cli"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"

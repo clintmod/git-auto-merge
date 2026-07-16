@@ -1,0 +1,9 @@
+# DL3018 (pin apk versions): alpine purges old package versions from its
+# repos, so pinned versions break rebuilds within weeks; the base image tag
+# pin plus trivy scanning covers this risk instead
+# DL3017 (no apk upgrade): deliberate — the python base image often lags
+# alpine security releases, and trivy gates CRITICALs at build time; patched
+# beats reproducible here
+ignored:
+  - DL3018
+  - DL3017

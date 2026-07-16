@@ -2,7 +2,6 @@ version: '3'
 
 # shell env overrides these (Make's ?= semantics)
 env:
-  POETRY_VIRTUALENVS_IN_PROJECT: "true"
   GIT_AUTO_MERGE_REPO: https://github.com/clintmod/git_auto_merge_test.git
   GIT_AUTO_MERGE_REPO_CONFLICT: https://github.com/clintmod/git_auto_merge_test_conflict.git
   IMAGE_NAME: clintmod/git-auto-merge
@@ -10,7 +9,7 @@ env:
 vars:
   BIN: .venv/bin/git-auto-merge
   VERSION:
-    sh: yq .tool.poetry.version pyproject.toml
+    sh: yq .project.version pyproject.toml
   PYTHON_VERSION:
     sh: cat .python-version
 
@@ -21,7 +20,7 @@ tasks:
       - rite -l
 
   all:
-    desc: Format, build, unit tests, lint, flake8, bandit, integration tests
+    desc: Every check plus the integration tests
     aliases: [a]
     cmds:
       - task: format
@@ -30,6 +29,11 @@ tasks:
       - task: lint
       - task: flake8
       - task: bandit
+      - task: typecheck
+      - task: deptry
+      - task: audit
+      - task: lint:workflows
+      - task: lint:docker
       - task: test:integration
 
   dev:
@@ -42,6 +46,9 @@ tasks:
       - task: lint
       - task: flake8
       - task: bandit
+      - task: typecheck
+      - task: deptry
+      - task: audit
 
   ci:
     desc: The checks CI runs (no integration tests — they push to external repos)
@@ -52,6 +59,10 @@ tasks:
       - task: lint
       - task: flake8
       - task: bandit
+      - task: typecheck
+      - task: deptry
+      - task: audit
+      - task: lint:workflows
 
   reports:
     internal: true
@@ -66,26 +77,26 @@ tasks:
     aliases: [b]
     sources:
       - pyproject.toml
-      - poetry.lock
+      - uv.lock
     generates:
       - ${BIN}
     cmds:
-      - poetry install
+      - uv sync
 
   format:
     desc: Reformat with black and isort
     aliases: [f]
     deps: [build, reports]
     cmds:
-      - set -o pipefail; poetry run black . && poetry run isort . | tee -i reports/format.ansi
+      - set -o pipefail; uv run black . && uv run isort . | tee -i reports/format.ansi
 
   format:check:
     desc: Fail if black or isort would change anything (CI gate)
     aliases: [fc]
     deps: [build]
     cmds:
-      - poetry run black --check .
-      - poetry run isort --check-only .
+      - uv run black --check .
+      - uv run isort --check-only .
 
   test:
     desc: Unit and integration tests
@@ -95,16 +106,17 @@ tasks:
       - task: test:integration
 
   test:unit:
-    desc: Unit tests with coverage
+    desc: Unit tests with coverage (fails under 85%)
     aliases: [tu]
     deps: [build, reports]
     cmds:
       - |
         set -o pipefail
-        unbuffer poetry run pytest -vvv \
+        unbuffer uv run pytest -vvv \
           --tb=long \
           --cov=src \
           --cov-report term-missing:skip-covered \
+          --cov-fail-under=85 \
           $EXTRA_TEST_ARGS \
         tests/unit \
         | tee -i reports/test-unit.ansi
@@ -112,7 +124,7 @@ tasks:
   test:unit:update:
     desc: Re-run unit tests updating pytest snapshots
     cmds:
-      - EXTRA_TEST_ARGS="--snapshot-update" rite test:unit
+      - EXTRA_TEST_ARGS="--snapshot-update" rite -f test:unit
 
   test:integration:
     desc: Integration tests (clones and pushes to GIT_AUTO_MERGE_REPO)
@@ -121,7 +133,7 @@ tasks:
     cmds:
       - |
         set -o pipefail
-        unbuffer poetry run pytest -vvv \
+        unbuffer uv run pytest -vvv \
           --tb=long \
           $EXTRA_TEST_ARGS \
         tests/integration \
@@ -132,44 +144,70 @@ tasks:
     aliases: [l]
     deps: [build, reports]
     cmds:
-      - set -o pipefail; poetry run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
+      - set -o pipefail; uv run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
 
   flake8:
     desc: Run flake8 (config in .flake8)
     aliases: [f8]
     deps: [build, reports]
     cmds:
-      - set -o pipefail; poetry run flake8 src tests | tee -i reports/flake8.ansi
+      - set -o pipefail; uv run flake8 src tests | tee -i reports/flake8.ansi
 
   bandit:
     desc: Run bandit security checks on src (config in pyproject.toml)
     deps: [build, reports]
     cmds:
-      - set -o pipefail; poetry run bandit -q -c pyproject.toml -r src | tee -i reports/bandit.ansi
+      - set -o pipefail; uv run bandit -q -c pyproject.toml -r src | tee -i reports/bandit.ansi
 
-  safety:
-    desc: Check dependencies for known vulnerabilities
+  typecheck:
+    desc: Run pyright
+    aliases: [tc]
     deps: [build, reports]
     cmds:
-      - scripts/safety.sh
+      - set -o pipefail; uv run pyright src tests | tee -i reports/typecheck.ansi
+
+  deptry:
+    desc: Check for unused/missing/misplaced dependencies
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; uv run deptry src | tee -i reports/deptry.ansi
+
+  audit:
+    desc: Audit dependencies for known vulnerabilities (replaces safety)
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; uv run pip-audit --skip-editable | tee -i reports/audit.ansi
+
+  lint:workflows:
+    desc: Lint GitHub Actions workflows (actionlint + zizmor)
+    deps: [build, reports]
+    cmds:
+      - actionlint
+      - set -o pipefail; uv run zizmor .github/workflows/ | tee -i reports/zizmor.ansi
+
+  lint:docker:
+    desc: Lint the Dockerfile with hadolint
+    deps: [reports]
+    cmds:
+      - set -o pipefail; hadolint Dockerfile | tee -i reports/hadolint.ansi
 
   dry-run:
     desc: Run the merge against GIT_AUTO_MERGE_REPO without pushing
     deps: [build]
     cmds:
-      - poetry run ${BIN} --dry-run
+      - uv run ${BIN} --dry-run
 
   run:
     desc: Run the merge against GIT_AUTO_MERGE_REPO
     deps: [build]
     cmds:
-      - poetry run ${BIN} $EXTRA_RUN_ARGS
+      - uv run ${BIN} $EXTRA_RUN_ARGS
 
   run:conflict:
     desc: Run the merge against the conflict test repo
     deps: [build]
     cmds:
-      - poetry run ${BIN} --repo $GIT_AUTO_MERGE_REPO_CONFLICT $EXTRA_RUN_ARGS
+      - uv run ${BIN} --repo $GIT_AUTO_MERGE_REPO_CONFLICT $EXTRA_RUN_ARGS
 
   clean:reports:
     desc: Remove generated reports
@@ -191,7 +229,6 @@ tasks:
     desc: Full release — checks, docker image, tag, and push
     cmds:
       - task: all
-      - task: safety
       - task: docker:build
       - task: docker:test
       - task: docker:scan

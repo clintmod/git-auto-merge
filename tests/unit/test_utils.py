@@ -10,7 +10,7 @@ def test_execute_shell(run_mock):
     utils.execute_shell(["asdf"])
 
 
-# pylint: disable=unused-argument,too-many-arguments
+# pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
 def run_func(command, shell, cwd, stderr, check, stdout, universal_newlines):
     length = len(command)
     assert length > 0
@@ -28,7 +28,7 @@ def test_execute_shell_handles_errors(run_mock):
         pass
 
 
-# pylint: disable=unused-argument,too-many-arguments
+# pylint: disable=unused-argument,too-many-arguments,too-many-positional-arguments
 def run_error_func(command, shell, cwd, stderr, check, stdout, universal_newlines):
     raise CalledProcessError(0, command)
 
