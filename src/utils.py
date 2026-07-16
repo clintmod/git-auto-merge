@@ -9,7 +9,8 @@ def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):
     log.debug("setting working dir to: {}", cwd)
     log.info("command: {}", str(command))
     try:
-        proc = run(
+        # running git shell pipelines is this tool's purpose
+        proc = run(  # nosec B602
             command,
             shell=is_shell,
             cwd=cwd,

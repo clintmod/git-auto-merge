@@ -2,3 +2,4 @@
 
 python = "3.11"
 poetry = "1.8"
+"github:clintmod/rite" = "latest"

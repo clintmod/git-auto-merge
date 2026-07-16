@@ -215,7 +215,6 @@ def get_use_default_plan(click_context=None):
 
 
 def clone():
-    err = None
     work_dir = get_work_dir()
     os.makedirs(work_dir, exist_ok=True)
     orig_dir = os.getcwd()
@@ -227,7 +226,7 @@ def clone():
         log.warning("This may fail if the repo already exists")
         command = f" git clone {repo}"
         utils.execute_shell(command)
-    except CalledProcessError as err:  #  pylint: disable=broad-exception-caught
+    except CalledProcessError as err:
         if "already exists" in err.output:
             log.info("Trying to fetch repo {} instead", repo)
             command = f"cd {repo_name} && git fetch --prune"
