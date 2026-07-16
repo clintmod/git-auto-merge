@@ -1,7 +1,9 @@
 ARG PYTHON_VERSION=3.11.6
-FROM python:${PYTHON_VERSION}-alpine as base
+FROM python:${PYTHON_VERSION}-alpine AS base
 
-RUN apk add --no-cache \
+# upgrade first so distro security fixes land even when the base image lags
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
     bash \
     curl \
     jq \
@@ -12,24 +14,23 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-FROM base as builder
+FROM base AS builder
 
-RUN pip install --upgrade pip \
-    && pip install --no-cache-dir poetry
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /bin/uv
 
-COPY pyproject.toml poetry.lock /app/
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
+    UV_CACHE_DIR=/tmp/uv_cache \
+    UV_COMPILE_BYTECODE=1
 
-RUN mkdir src && touch README.md src/git_auto_merge.py
+COPY pyproject.toml uv.lock /app/
 
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache/
+# dummy sources so the project itself resolves; the editable install points
+# at /app/src, which the final stage populates with the real code
+RUN mkdir src && touch README.md src/git_auto_merge.py src/utils.py
 
-RUN --mount=type=cache,target=$POETRY_CACHE_DIR poetry install --only main \
-    && rm -rf $POETRY_CACHE_DIR/*
+RUN --mount=type=cache,target=/tmp/uv_cache uv sync --frozen --no-dev
 
-FROM base as final
+FROM base AS final
 
 RUN adduser -D app \
     && chown -R app:app /app

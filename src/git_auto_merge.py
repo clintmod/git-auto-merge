@@ -547,6 +547,7 @@ def cli(**args):
     plan = build_plan(config)
     log.info("Plan: {}", plan)
     os.chdir(f"{get_repo_path()}")
+    errors = []
     if plan:
         errors = merge_all(plan)
     os.chdir(cur_dir)

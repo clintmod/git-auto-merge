@@ -1,5 +1,7 @@
 [tools]
 
 python = "3.11"
-poetry = "1.8"
+uv = "latest"
 "github:clintmod/rite" = "latest"
+actionlint = "latest"
+hadolint = "latest"

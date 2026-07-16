@@ -3,4 +3,6 @@
 max-line-length = 100
 # E203/W503 conflict with black's slice-spacing and operator-wrapping style
 extend-ignore = E203, W503
+# current worst offender scores 4; this is a ratchet, not a target
+max-complexity = 10
 exclude = .venv,.git,__pycache__,workdir,reports

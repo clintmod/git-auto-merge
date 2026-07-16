@@ -98,6 +98,7 @@ def test_merge_all(raw_branches_mock, execute_shell_mock, click_context):
         raw_branches_mock.return_value = "  develop\n" + "  main\n"
         config = gam.load_config()
         plan = gam.build_plan(config)
+        assert plan is not None
         errors = gam.merge_all(plan)
         assert not errors
         execute_shell_mock.assert_called()
@@ -156,6 +157,7 @@ def test_merge_all_reports_errors(raw_branches_mock, execute_shell_mock, click_c
         raw_branches_mock.side_effect = get_branch_list_raw
         config = gam.load_config()
         plan = gam.build_plan(config)
+        assert plan is not None
         execute_shell_mock.side_effect = raise_merge_error
         gam.log.info("Plan: {}", plan)
         errors = gam.merge_all(merge_item=plan)
