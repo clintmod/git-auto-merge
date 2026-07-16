@@ -39,7 +39,7 @@ reports/format.ansi: $(SRC)
 
 format: reports/format.ansi
 
-format-check:
+format-check: $(BIN)
 	poetry run black --check .
 	poetry run isort --check-only .
 
