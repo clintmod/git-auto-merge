@@ -88,7 +88,7 @@ Based on this `.git-auto-merge.json` file in the default branch of a repo:
 
 ```
 
-This util would merge code like below: 
+If `main` is production and you're following git flow, this util would merge code like below: 
 
 
 ```
