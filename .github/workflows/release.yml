@@ -21,6 +21,14 @@ jobs:
         with:
           cache: false
 
+      - name: Verify tag matches pyproject version
+        run: |
+          expected="v$(yq .project.version pyproject.toml)"
+          if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match pyproject version $expected"
+            exit 1
+          fi
+
       - name: Login to Docker Hub
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
@@ -29,6 +37,9 @@ jobs:
 
       - name: Build image
         run: rite docker:build
+
+      - name: Smoke test image
+        run: rite docker:smoke
 
       - name: Scan image
         run: rite docker:scan

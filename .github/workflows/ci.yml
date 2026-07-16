@@ -18,6 +18,7 @@ jobs:
       matrix:
         check:
           - format:check
+          - lock:check
           - test:unit
           - lint
           - flake8
@@ -25,6 +26,7 @@ jobs:
           - typecheck
           - deptry
           - audit
+          - config:check
           - lint:workflows
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -74,8 +76,60 @@ jobs:
       - name: Build image
         run: rite docker:build
 
+      - name: Smoke test image
+        run: rite docker:smoke
+
       - name: Scan image
         run: rite docker:scan
+
+  # real end-to-end merges against the test repos; needs a fine-grained PAT
+  # with write access to clintmod/git_auto_merge_test(.conflict) in the
+  # INTEGRATION_TEST_PAT secret — skips with a notice until that exists
+  integration:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Check for PAT
+        id: pat
+        env:
+          PAT: ${{ secrets.INTEGRATION_TEST_PAT }}
+        run: |
+          if [ -n "$PAT" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::INTEGRATION_TEST_PAT secret not set; skipping integration tests"
+          fi
+
+      - name: Install expect
+        if: steps.pat.outputs.present == 'true'
+        run: sudo apt-get update && sudo apt-get install -y expect
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+        if: steps.pat.outputs.present == 'true'
+
+      - name: Cache virtualenv
+        if: steps.pat.outputs.present == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+
+      - name: Configure git auth and identity
+        if: steps.pat.outputs.present == 'true'
+        env:
+          PAT: ${{ secrets.INTEGRATION_TEST_PAT }}
+        run: |
+          git config --global url."https://x-access-token:${PAT}@github.com/".insteadOf "https://github.com/"
+          git config --global user.name "git-auto-merge-ci"
+          git config --global user.email "git-auto-merge-ci@users.noreply.github.com"
+
+      - name: rite test:integration
+        if: steps.pat.outputs.present == 'true'
+        run: rite test:integration
 
   gitleaks:
     runs-on: ubuntu-latest

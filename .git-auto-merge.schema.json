@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/clintmod/git-auto-merge/main/.git-auto-merge.schema.json",
+  "title": "git-auto-merge config",
+  "description": "Merge plan for git-auto-merge: a tree of branch groups, each selecting branches by name or regex and merging into its downstream groups.",
+  "type": "object",
+  "required": ["plan"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "description": "Config format version",
+      "type": "integer",
+      "const": 1
+    },
+    "repo_path": {
+      "description": "Optional working directory override for the cloned repo",
+      "type": "string"
+    },
+    "plan": {
+      "type": "object",
+      "required": ["root"],
+      "additionalProperties": false,
+      "properties": {
+        "root": { "$ref": "#/$defs/node" }
+      }
+    }
+  },
+  "$defs": {
+    "selector": {
+      "description": "Selects branches by exact name or by regex; regexes with a capture group extract the version used by sort and downstreamForEach matching",
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["name"],
+          "additionalProperties": false,
+          "properties": { "name": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "required": ["regex"],
+          "additionalProperties": false,
+          "properties": { "regex": { "type": "string", "minLength": 1, "format": "regex" } }
+        }
+      ]
+    },
+    "node": {
+      "description": "A branch group: which branches it selects and what merges downstream of it",
+      "type": "object",
+      "required": ["selectors"],
+      "additionalProperties": false,
+      "properties": {
+        "selectors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/selector" }
+        },
+        "sort": {
+          "description": "Sort selected branches; 'version' orders by the semver captured from the selector regex",
+          "type": "string",
+          "enum": ["version"]
+        },
+        "downstreamForEach": {
+          "description": "For each selected branch, also merge into branches matched by these selectors",
+          "type": "object",
+          "required": ["matchOn", "matchedSelectors"],
+          "additionalProperties": false,
+          "properties": {
+            "matchOn": {
+              "type": "string",
+              "enum": ["version", "branch"]
+            },
+            "matchedSelectors": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/selector" }
+            }
+          }
+        },
+        "downstream": {
+          "description": "Named groups that merge from this group, in order",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/node" }
+        }
+      }
+    }
+  }
+}

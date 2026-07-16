@@ -54,6 +54,7 @@ tasks:
     desc: The checks CI runs (no integration tests — they push to external repos)
     cmds:
       - task: format:check
+      - task: lock:check
       - task: build
       - task: test:unit
       - task: lint
@@ -62,6 +63,7 @@ tasks:
       - task: typecheck
       - task: deptry
       - task: audit
+      - task: config:check
       - task: lint:workflows
 
   reports:
@@ -115,8 +117,9 @@ tasks:
         unbuffer uv run pytest -vvv \
           --tb=long \
           --cov=src \
+          --cov-branch \
           --cov-report term-missing:skip-covered \
-          --cov-fail-under=85 \
+          --cov-fail-under=80 \
           $EXTRA_TEST_ARGS \
         tests/unit \
         | tee -i reports/test-unit.ansi
@@ -177,6 +180,24 @@ tasks:
     deps: [build, reports]
     cmds:
       - set -o pipefail; uv run pip-audit --skip-editable | tee -i reports/audit.ansi
+
+  lock:check:
+    desc: Fail if uv.lock is out of sync with pyproject.toml
+    cmds:
+      - uv lock --check
+
+  config:check:
+    desc: Validate the merge-plan configs against the JSON schema
+    deps: [build, reports]
+    cmds:
+      - |
+        set -o pipefail
+        uv run check-jsonschema \
+          --schemafile .git-auto-merge.schema.json \
+          .git-auto-merge.json \
+          tests/unit/multi-project-config.json \
+          tests/unit/test_files/*.json \
+        | tee -i reports/config-check.ansi
 
   lint:workflows:
     desc: Lint GitHub Actions workflows (actionlint + zizmor)
@@ -240,6 +261,7 @@ tasks:
     desc: Build, test, scan, and push the docker image
     cmds:
       - task: docker:build
+      - task: docker:smoke
       - task: docker:test
       - task: docker:scan
       - task: docker:push
@@ -283,6 +305,12 @@ tasks:
             --ignore-unfixed \
             --ignorefile /.trivyignore \
           "${IMAGE_NAME}:${VERSION}"
+
+  docker:smoke:
+    desc: Verify the built image actually runs
+    cmds:
+      - docker run --rm ${IMAGE_NAME}:${VERSION} --help > /dev/null
+      - echo "image entrypoint OK"
 
   docker:push:
     desc: Push the versioned and latest image tags
