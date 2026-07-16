@@ -129,6 +129,19 @@ tasks:
     cmds:
       - EXTRA_TEST_ARGS="--snapshot-update" rite -f test:unit
 
+  test:integration:dry:
+    desc: PR-safe integration test — real clone and merges, no push (read-only)
+    aliases: [tid]
+    deps: [build, reports]
+    cmds:
+      - |
+        set -o pipefail
+        unbuffer uv run pytest -vvv \
+          --tb=long \
+          -k dry_run \
+        tests/integration \
+        | tee -i reports/test-integration-dry.ansi
+
   test:integration:
     desc: Integration tests (clones and pushes to GIT_AUTO_MERGE_REPO)
     aliases: [ti]

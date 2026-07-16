@@ -20,6 +20,7 @@ jobs:
           - format:check
           - lock:check
           - test:unit
+          - test:integration:dry
           - lint
           - flake8
           - bandit
@@ -35,7 +36,7 @@ jobs:
 
       # unbuffer (used by the test tasks) comes from expect
       - name: Install expect
-        if: matrix.check == 'test:unit'
+        if: startsWith(matrix.check, 'test:')
         run: sudo apt-get update && sudo apt-get install -y expect
 
       # installs python, uv, rite, and actionlint pinned in .mise.toml
