@@ -28,7 +28,11 @@ def git(git_args, cwd="."):
 
 def remote_refs():
     out = git(["ls-remote", "--heads", os.getenv("GIT_AUTO_MERGE_REPO")]).stdout
-    return dict(reversed(line.split()) for line in out.strip().splitlines())
+    refs: dict[str, str] = {}
+    for line in out.strip().splitlines():
+        sha, ref = line.split()
+        refs[ref] = sha
+    return refs
 
 
 def local_branches():
