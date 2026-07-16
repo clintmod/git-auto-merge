@@ -6,3 +6,4 @@ reports
 .vscode
 .venv
 workdir
+.rite
