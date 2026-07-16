@@ -27,8 +27,6 @@ tasks:
       - task: build
       - task: test:unit
       - task: lint
-      - task: flake8
-      - task: bandit
       - task: typecheck
       - task: deptry
       - task: audit
@@ -44,8 +42,6 @@ tasks:
       - task: build
       - task: test:unit
       - task: lint
-      - task: flake8
-      - task: bandit
       - task: typecheck
       - task: deptry
       - task: audit
@@ -58,8 +54,6 @@ tasks:
       - task: build
       - task: test:unit
       - task: lint
-      - task: flake8
-      - task: bandit
       - task: typecheck
       - task: deptry
       - task: audit
@@ -86,19 +80,18 @@ tasks:
       - uv sync
 
   format:
-    desc: Reformat with black and isort
+    desc: Reformat and fix imports with ruff
     aliases: [f]
     deps: [build, reports]
     cmds:
-      - set -o pipefail; uv run black . && uv run isort . | tee -i reports/format.ansi
+      - set -o pipefail; uv run ruff format . && uv run ruff check --select I --fix . | tee -i reports/format.ansi
 
   format:check:
-    desc: Fail if black or isort would change anything (CI gate)
+    desc: Fail if ruff format would change anything (CI gate)
     aliases: [fc]
     deps: [build]
     cmds:
-      - uv run black --check .
-      - uv run isort --check-only .
+      - uv run ruff format --check .
 
   test:
     desc: Unit and integration tests
@@ -108,7 +101,7 @@ tasks:
       - task: test:integration
 
   test:unit:
-    desc: Unit tests with coverage (fails under 85%)
+    desc: Unit tests with coverage (fails under 80% branch coverage)
     aliases: [tu]
     deps: [build, reports]
     cmds:
@@ -156,24 +149,11 @@ tasks:
         | tee -i reports/test-integration.ansi
 
   lint:
-    desc: Run pylint
+    desc: Run ruff (pycodestyle, pyflakes, isort, pylint, mccabe, and bandit rules)
     aliases: [l]
     deps: [build, reports]
     cmds:
-      - set -o pipefail; uv run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
-
-  flake8:
-    desc: Run flake8 (config in .flake8)
-    aliases: [f8]
-    deps: [build, reports]
-    cmds:
-      - set -o pipefail; uv run flake8 src tests | tee -i reports/flake8.ansi
-
-  bandit:
-    desc: Run bandit security checks on src (config in pyproject.toml)
-    deps: [build, reports]
-    cmds:
-      - set -o pipefail; uv run bandit -q -c pyproject.toml -r src | tee -i reports/bandit.ansi
+      - set -o pipefail; uv run ruff check . | tee -i reports/lint.ansi
 
   typecheck:
     desc: Run pyright

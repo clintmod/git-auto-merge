@@ -22,8 +22,6 @@ jobs:
           - test:unit
           - test:integration:dry
           - lint
-          - flake8
-          - bandit
           - typecheck
           - deptry
           - audit

@@ -1,6 +1,3 @@
-# pytest fixtures are injected by shadowing the fixture-function name
-# pylint: disable=redefined-outer-name
-
 import os
 import subprocess
 

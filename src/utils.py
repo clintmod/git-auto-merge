@@ -10,7 +10,7 @@ def execute_shell(command, is_shell=True, cwd=".", suppress_errors=False):
     log.info("command: {}", str(command))
     try:
         # running git shell pipelines is this tool's purpose
-        proc = run(  # nosec B602
+        proc = run(  # noqa: S603
             command,
             shell=is_shell,
             cwd=cwd,

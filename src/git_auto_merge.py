@@ -13,7 +13,6 @@ from packaging.version import Version
 
 import utils
 
-# pylint: disable=anomalous-backslash-in-string
 SEMVER_PATTERN = r"(\d+\.\d+\.\d+)"
 
 
@@ -402,13 +401,12 @@ def process_selectors_config(
             return_val = upstream.add_downstream_branch(branch=selected_branches[0], group=group)
         else:
             return_val.branch_name = str(selected_branches[0])
+    elif sort_type == "version":
+        return_val = process_versioned_branches(
+            selected_branches=selected_branches, group=group, upstream=return_val
+        )
     else:
-        if sort_type == "version":
-            return_val = process_versioned_branches(
-                selected_branches=selected_branches, group=group, upstream=return_val
-            )
-        else:
-            process_branches(selected_branches=selected_branches, group=group, upstream=return_val)
+        process_branches(selected_branches=selected_branches, group=group, upstream=return_val)
     return return_val
 
 
