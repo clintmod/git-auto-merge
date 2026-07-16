@@ -10,8 +10,22 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  check:
+    name: ${{ matrix.check }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - format:check
+          - test:unit
+          - lint
+          - flake8
+          - bandit
+          - typecheck
+          - deptry
+          - audit
+          - lint:workflows
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -19,6 +33,7 @@ jobs:
 
       # unbuffer (used by the test tasks) comes from expect
       - name: Install expect
+        if: matrix.check == 'test:unit'
         run: sudo apt-get update && sudo apt-get install -y expect
 
       # installs python, uv, rite, and actionlint pinned in .mise.toml
@@ -30,8 +45,22 @@ jobs:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('uv.lock') }}
 
-      - name: Build and test
-        run: rite ci
+      - name: rite ${{ matrix.check }}
+        env:
+          CHECK: ${{ matrix.check }}
+        run: rite "$CHECK"
+
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+
+      - name: Lint Dockerfile
+        run: rite lint:docker
 
   docker:
     runs-on: ubuntu-latest
@@ -40,11 +69,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # only rite and hadolint are needed here, not python/uv
       - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
-
-      - name: Lint Dockerfile
-        run: rite lint:docker
 
       - name: Build image
         run: rite docker:build
