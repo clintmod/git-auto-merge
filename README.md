@@ -17,7 +17,8 @@ A tool to automatically merge git branches.
 ```
 
 git clone https://github.com/clintmod/git-auto-merge.git
-make
+mise install
+rite all
 
 ```
 

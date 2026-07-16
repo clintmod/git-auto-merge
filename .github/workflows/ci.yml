@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # unbuffer (used by the test targets) comes from expect
+      - name: Install expect
+        run: sudo apt-get update && sudo apt-get install -y expect
+
+      # installs python + poetry pinned in .mise.toml
+      - uses: jdx/mise-action@v2
+
+      - name: Cache virtualenv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('poetry.lock') }}
+
+      - name: Build and test
+        run: rite ci
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # only rite is needed for the docker build, not python/poetry
+      - uses: jdx/mise-action@v2
+
+      - name: Build image
+        run: rite docker:build

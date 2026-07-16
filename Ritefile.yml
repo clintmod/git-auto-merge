@@ -1,0 +1,283 @@
+version: '3'
+
+# shell env overrides these (Make's ?= semantics)
+env:
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  GIT_AUTO_MERGE_REPO: https://github.com/clintmod/git_auto_merge_test.git
+  GIT_AUTO_MERGE_REPO_CONFLICT: https://github.com/clintmod/git_auto_merge_test_conflict.git
+  IMAGE_NAME: clintmod/git-auto-merge
+
+vars:
+  BIN: .venv/bin/git-auto-merge
+  VERSION:
+    sh: yq .tool.poetry.version pyproject.toml
+  PYTHON_VERSION:
+    sh: cat .python-version
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - rite -l
+
+  all:
+    desc: Format, build, unit tests, lint, flake8, bandit, integration tests
+    aliases: [a]
+    cmds:
+      - task: format
+      - task: build
+      - task: test:unit
+      - task: lint
+      - task: flake8
+      - task: bandit
+      - task: test:integration
+
+  dev:
+    desc: Everything in all except the integration tests
+    aliases: [d]
+    cmds:
+      - task: format
+      - task: build
+      - task: test:unit
+      - task: lint
+      - task: flake8
+      - task: bandit
+
+  ci:
+    desc: The checks CI runs (no integration tests — they push to external repos)
+    cmds:
+      - task: format:check
+      - task: build
+      - task: test:unit
+      - task: lint
+      - task: flake8
+      - task: bandit
+
+  reports:
+    internal: true
+    silent: true
+    cmds:
+      - mkdir -p reports
+    status:
+      - test -d reports
+
+  build:
+    desc: Install dependencies into .venv
+    aliases: [b]
+    sources:
+      - pyproject.toml
+      - poetry.lock
+    generates:
+      - ${BIN}
+    cmds:
+      - poetry install
+
+  format:
+    desc: Reformat with black and isort
+    aliases: [f]
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; poetry run black . && poetry run isort . | tee -i reports/format.ansi
+
+  format:check:
+    desc: Fail if black or isort would change anything (CI gate)
+    aliases: [fc]
+    deps: [build]
+    cmds:
+      - poetry run black --check .
+      - poetry run isort --check-only .
+
+  test:
+    desc: Unit and integration tests
+    aliases: [t]
+    cmds:
+      - task: test:unit
+      - task: test:integration
+
+  test:unit:
+    desc: Unit tests with coverage
+    aliases: [tu]
+    deps: [build, reports]
+    cmds:
+      - |
+        set -o pipefail
+        unbuffer poetry run pytest -vvv \
+          --tb=long \
+          --cov=src \
+          --cov-report term-missing:skip-covered \
+          $EXTRA_TEST_ARGS \
+        tests/unit \
+        | tee -i reports/test-unit.ansi
+
+  test:unit:update:
+    desc: Re-run unit tests updating pytest snapshots
+    cmds:
+      - EXTRA_TEST_ARGS="--snapshot-update" rite test:unit
+
+  test:integration:
+    desc: Integration tests (clones and pushes to GIT_AUTO_MERGE_REPO)
+    aliases: [ti]
+    deps: [build, reports]
+    cmds:
+      - |
+        set -o pipefail
+        unbuffer poetry run pytest -vvv \
+          --tb=long \
+          $EXTRA_TEST_ARGS \
+        tests/integration \
+        | tee -i reports/test-integration.ansi
+
+  lint:
+    desc: Run pylint
+    aliases: [l]
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; poetry run pylint -j4 -f colorized src tests | tee -i reports/lint.ansi
+
+  flake8:
+    desc: Run flake8 (config in .flake8)
+    aliases: [f8]
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; poetry run flake8 src tests | tee -i reports/flake8.ansi
+
+  bandit:
+    desc: Run bandit security checks on src (config in pyproject.toml)
+    deps: [build, reports]
+    cmds:
+      - set -o pipefail; poetry run bandit -q -c pyproject.toml -r src | tee -i reports/bandit.ansi
+
+  safety:
+    desc: Check dependencies for known vulnerabilities
+    deps: [build, reports]
+    cmds:
+      - scripts/safety.sh
+
+  dry-run:
+    desc: Run the merge against GIT_AUTO_MERGE_REPO without pushing
+    deps: [build]
+    cmds:
+      - poetry run ${BIN} --dry-run
+
+  run:
+    desc: Run the merge against GIT_AUTO_MERGE_REPO
+    deps: [build]
+    cmds:
+      - poetry run ${BIN} $EXTRA_RUN_ARGS
+
+  run:conflict:
+    desc: Run the merge against the conflict test repo
+    deps: [build]
+    cmds:
+      - poetry run ${BIN} --repo $GIT_AUTO_MERGE_REPO_CONFLICT $EXTRA_RUN_ARGS
+
+  clean:reports:
+    desc: Remove generated reports
+    cmds:
+      - rm -rf reports/*
+
+  tag:
+    desc: Tag HEAD with the version from pyproject.toml
+    cmds:
+      - git tag v${VERSION}
+
+  git:push:
+    desc: Push commits and tags
+    cmds:
+      - git push --tags
+      - git push
+
+  release:
+    desc: Full release — checks, docker image, tag, and push
+    cmds:
+      - task: all
+      - task: safety
+      - task: docker:build
+      - task: docker:test
+      - task: docker:scan
+      - task: docker:push
+      - task: tag
+      - task: git:push
+
+  docker:
+    desc: Build, test, scan, and push the docker image
+    cmds:
+      - task: docker:build
+      - task: docker:test
+      - task: docker:scan
+      - task: docker:push
+
+  docker:build:
+    desc: Build the docker image
+    aliases: [db]
+    cmds:
+      - docker build --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t ${IMAGE_NAME}:${VERSION} .
+
+  docker:build:builder:
+    desc: Build only the builder stage of the docker image
+    cmds:
+      - docker build --target=builder --build-arg PYTHON_VERSION=${PYTHON_VERSION} -t ${IMAGE_NAME}:builder .
+
+  docker:test:
+    desc: Dry-run the image against the test repo
+    cmds:
+      - |
+        docker run \
+          -it --rm \
+          -e GIT_AUTO_MERGE_REPO=https://github.com/clintmod/git_auto_merge_test.git \
+          -e DEBUG=1 \
+          -v $HOME/.ssh:/home/app/.ssh \
+        ${IMAGE_NAME}:${VERSION} \
+          --dry-run
+
+  docker:scan:
+    desc: Scan the image for CRITICAL vulnerabilities with trivy
+    cmds:
+      - |
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v "$HOME/trivy/.cache:/root/.cache/" \
+          -v "$PWD/.trivyignore:/.trivyignore" \
+        aquasec/trivy:latest \
+          image \
+            --timeout 20m \
+            --exit-code 1 \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --ignorefile /.trivyignore \
+          "${IMAGE_NAME}:${VERSION}"
+
+  docker:push:
+    desc: Push the versioned and latest image tags
+    cmds:
+      - docker push ${IMAGE_NAME}:${VERSION}
+      - docker tag ${IMAGE_NAME}:${VERSION} ${IMAGE_NAME}:latest
+      - docker push ${IMAGE_NAME}:latest
+
+  docker:shell:
+    desc: Open a bash shell in the image
+    cmds:
+      - |
+        docker run \
+          -it --rm --entrypoint= \
+          -e GIT_AUTO_MERGE_REPO=$GIT_AUTO_MERGE_REPO \
+          -e DEBUG=1 \
+          -v $HOME/.ssh:/home/app/.ssh \
+        ${IMAGE_NAME}:${VERSION} \
+        bash
+
+  docker:run:
+    desc: Run the image against GIT_AUTO_MERGE_REPO
+    cmds:
+      - |
+        docker run \
+          -it --rm \
+          -e GIT_AUTO_MERGE_REPO=$GIT_AUTO_MERGE_REPO \
+          -e DEBUG=1 \
+          -v $HOME/.ssh:/home/app/.ssh \
+        ${IMAGE_NAME}:${VERSION}
+
+  print-env:
+    desc: Print the environment rite runs tasks with
+    cmds:
+      - env | sort

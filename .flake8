@@ -1,0 +1,6 @@
+# flake8 doesn't read pyproject.toml, so its config lives here
+[flake8]
+max-line-length = 100
+# E203/W503 conflict with black's slice-spacing and operator-wrapping style
+extend-ignore = E203, W503
+exclude = .venv,.git,__pycache__,workdir,reports

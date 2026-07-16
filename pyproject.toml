@@ -11,6 +11,12 @@ line_length = 100
 [tool.isort]
 profile = "black"
 
+[tool.bandit]
+# B101: asserts are used as internal guards, not security controls; the CLI
+#       is never run with python -O
+# B404: shelling out is this tool's purpose
+skips = ["B101", "B404"]
+
 [tool.poetry.dependencies]
 click = "^8.1.6"
 jsonpickle = "^3.0.1"
@@ -28,6 +34,8 @@ pytest-cov = "*"
 pytest-mock = "*"
 pytest-snapshot = "^0.9.0"
 safety = "*"
+flake8 = "^7.3.0"
+bandit = "^1.9.4"
 
 [tool.poetry.scripts]
 git-auto-merge = "git_auto_merge:cli"
