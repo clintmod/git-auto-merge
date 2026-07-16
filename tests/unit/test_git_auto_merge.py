@@ -216,7 +216,7 @@ def test_build_plan_works_when_multi_project(raw_branches_mock, snapshot, click_
 @patch("git_auto_merge.get_branch_list_raw")
 def test_weird_branch_bug(raw_branches_mock, snapshot, click_context):
     with click_context:
-        click_context.params["config_file_name"] = 'tests/unit/test_files/weird_branch_bug.json'
+        click_context.params["config_file_name"] = "tests/unit/test_files/weird_branch_bug.json"
         raw_branches_mock.side_effect = get_weird_branch_bug
         config = gam.load_config()
         plan = gam.build_plan(config)

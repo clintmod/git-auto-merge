@@ -1,3 +1,8 @@
+# tee is used throughout to capture reports; without pipefail the pipe
+# exits with tee's status and failures from pytest/pylint are masked
+SHELL = /bin/bash
+.SHELLFLAGS = -o pipefail -c
+
 POETRY_VIRTUALENVS_IN_PROJECT = true
 GIT_AUTO_MERGE_REPO ?= https://github.com/clintmod/git_auto_merge_test.git
 GIT_AUTO_MERGE_REPO_CONFLICT ?= https://github.com/clintmod/git_auto_merge_test_conflict.git
@@ -33,6 +38,10 @@ reports/format.ansi: $(SRC)
 	poetry run black . && poetry run isort . | tee -i reports/format.ansi
 
 format: reports/format.ansi
+
+format-check:
+	poetry run black --check .
+	poetry run isort --check-only .
 
 build: $(BIN)
 

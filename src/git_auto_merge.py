@@ -160,8 +160,7 @@ def get_log_level(click_context=None):
 def get_config_file_name(click_context=None):
     if click_context is None or click_context.params.get("config_file_name") is None:
         return ".git-auto-merge.json"
-    else:
-        return click_context.params.get("config_file_name")
+    return click_context.params.get("config_file_name")
 
 
 @click.pass_context
@@ -198,24 +197,21 @@ def get_repo_path():
 def get_dry_run(click_context=None):
     if click_context is None:
         return True
-    else:
-        return click_context.params.get("dry_run")
+    return click_context.params.get("dry_run")
 
 
 @click.pass_context
 def get_config_branch(click_context=None):
     if click_context is None:
         return "main"
-    else:
-        return click_context.params.get("config_branch")
+    return click_context.params.get("config_branch")
 
 
 @click.pass_context
 def get_use_default_plan(click_context=None):
     if click_context is None:
         return True
-    else:
-        return click_context.params.get("use_default_plan")
+    return click_context.params.get("use_default_plan")
 
 
 def clone():
@@ -417,7 +413,9 @@ def process_selectors_config(
     return return_val
 
 
-def process_branches_config(branches_config, branch_list, upstream: Optional[MergeItem]=None) -> Optional[MergeItem]:
+def process_branches_config(
+    branches_config, branch_list, upstream: Optional[MergeItem] = None
+) -> Optional[MergeItem]:
     merge_item = None
     for group in branches_config:
         branch_config = branches_config[group]
@@ -448,9 +446,9 @@ def process_downstream_for_each_config(
                     item.add_downstream_branch(branch=branch, group=group)
 
 
-def process_branch_config(branch_config:dict, branch_list, upstream, group) -> MergeItem:
+def process_branch_config(branch_config: dict, branch_list, upstream, group) -> MergeItem:
     selectors_config = branch_config.get("selectors")
-    sort_type:str = str(branch_config.get("sort"))
+    sort_type: str = str(branch_config.get("sort"))
     merge_item = process_selectors_config(
         selectors_config=selectors_config,
         upstream=upstream,
@@ -483,6 +481,7 @@ def build_plan(config) -> Optional[MergeItem]:
         branch_config=root_config, branch_list=branch_list, upstream=None, group="root"
     )
     return plan
+
 
 @click.command(
     context_settings=dict(auto_envvar_prefix="GIT_AUTO_MERGE", max_content_width=500),
