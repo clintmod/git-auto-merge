@@ -40,7 +40,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y expect
 
       # installs python, uv, rite, and actionlint pinned in .mise.toml
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
 
       - name: Cache virtualenv
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -60,7 +60,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
 
       - name: Lint Dockerfile
         run: rite lint:docker
@@ -72,7 +72,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
 
       - name: Build image
         run: rite docker:build
@@ -109,7 +109,7 @@ jobs:
         if: steps.pat.outputs.present == 'true'
         run: sudo apt-get update && sudo apt-get install -y expect
 
-      - uses: jdx/mise-action@e6a8b3978addb5a52f2b4cd9d91eafa7f0ab959d # v4.2.0
+      - uses: jdx/mise-action@dad1bfd3df957f44999b559dd69dc1671cb4e9ea # v4.2.1
         if: steps.pat.outputs.present == 'true'
 
       - name: Cache virtualenv
