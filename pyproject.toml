@@ -14,15 +14,10 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "bandit>=1.9.4",
-    "black>=26",
     "check-jsonschema>=0.37.4",
     "deptry>=0.25.1",
-    "flake8>=7.3.0",
     "hypothesis>=6.156.6",
-    "isort>=7",
     "pip-audit>=2.10.1",
-    "pylint>=4",
     "pyright>=1.1.313",
     "pytest>=9",
     "pytest-cov>=7",
@@ -30,6 +25,7 @@ dev = [
     "pytest-randomly>=4.1.0",
     "pytest-snapshot>=0.9.0",
     "pytest-timeout>=2.4.0",
+    "ruff>=0.15.22",
     "setuptools>=83",
     "zizmor>=1.27.0",
 ]
@@ -50,14 +46,23 @@ py-modules = ["git_auto_merge", "utils"]
 # pytest-timeout: no test in this suite should run anywhere near this long
 timeout = 120
 
-[tool.black]
-line_length = 100
+[tool.ruff]
+line-length = 100
+target-version = "py311"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+# E/W/F: pycodestyle+pyflakes (was flake8), I: import order (was isort),
+# C90: complexity (was flake8 mccabe), PL: pylint rules, S: security (was bandit)
+select = ["E", "W", "F", "I", "C90", "PL", "S"]
+ignore = [
+    # asserts are internal guards, not security controls; the CLI is never
+    # run with python -O (was bandit B101)
+    "S101",
+]
 
-[tool.bandit]
-# B101: asserts are used as internal guards, not security controls; the CLI
-#       is never run with python -O
-# B404: shelling out is this tool's purpose
-skips = ["B101", "B404"]
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# bandit previously scanned src only; tests shell out and use magic values freely
+"tests/**" = ["S", "PLR2004", "PLR0913"]
