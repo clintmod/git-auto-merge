@@ -9,7 +9,7 @@ dependencies = [
     "click>=8.1.6",
     "jsonpickle>=3.0.1",
     "loguru>=0.7.0",
-    "packaging>=25",
+    "packaging>=26.3",
 ]
 
 [dependency-groups]
