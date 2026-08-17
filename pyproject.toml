@@ -26,7 +26,7 @@ dev = [
     "pytest-snapshot>=0.9.0",
     "pytest-timeout>=2.4.0",
     "ruff>=0.15.22",
-    "setuptools>=83",
+    "setuptools>=84.0.0",
     "zizmor>=1.27.0",
 ]
 
@@ -34,7 +34,7 @@ dev = [
 git-auto-merge = "git_auto_merge:cli"
 
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools>=84.0.0"]
 build-backend = "setuptools.build_meta"
 
 # src holds flat modules (git_auto_merge.py, utils.py), not a package
